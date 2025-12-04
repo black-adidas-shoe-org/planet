@@ -9,6 +9,7 @@ use common_game::components::rocket::Rocket;
 use common_game::protocols::messages;
 use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
 use common_game::protocols::messages::OrchestratorToPlanet::Sunray;
+use common_game::protocols::messages::PlanetToOrchestrator::AsteroidAck;
 
 // Group-defined AI struct
 pub struct AI {
@@ -47,7 +48,11 @@ impl PlanetAI for AI {
 
             }
             OrchestratorToPlanet::Asteroid(_) => {
-                None
+                //send the ack
+                Some(PlanetToOrchestrator::AsteroidAck {
+                    planet_id: state.id(),
+                    rocket: None,
+                })
             }
             OrchestratorToPlanet::StartPlanetAI(_) => {
                 None
