@@ -5,7 +5,9 @@ use common_game::components::rocket::Rocket;
 use common_game::protocols::messages;
 
 // Group-defined AI struct
-struct AI { /* your AI state here */ }
+struct AI { 
+    
+}
 
 impl PlanetAI for AI {
     fn handle_orchestrator_msg(
