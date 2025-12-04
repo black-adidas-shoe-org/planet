@@ -1,11 +1,20 @@
+use std::os::linux::raw::stat;
 use std::sync::mpsc;
+use std::sync::mpsc::channel;
+use std::time::SystemTime;
+use common_game::components::energy_cell::EnergyCell;
 use common_game::components::planet::{Planet, PlanetAI, PlanetState, PlanetType};
 use common_game::components::resource::{Combinator, Generator};
 use common_game::components::rocket::Rocket;
 use common_game::protocols::messages;
+use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
+use common_game::protocols::messages::OrchestratorToPlanet::Sunray;
 
 // Group-defined AI struct
-struct AI { /* your AI state here */ }
+pub struct AI {
+    isOn: bool,
+
+}
 
 impl PlanetAI for AI {
     fn handle_orchestrator_msg(
@@ -15,8 +24,42 @@ impl PlanetAI for AI {
         combinator: &Combinator,
         msg: messages::OrchestratorToPlanet
     ) -> Option<messages::PlanetToOrchestrator> {
-        // your handler code here...
-        None
+
+        // match on msg type
+        match msg {
+            OrchestratorToPlanet::Sunray(sunray) => {
+                // state
+                let cell_opt = state.cells_iter_mut().find(|c| !c.is_charged());
+                match cell_opt{
+                    None => {
+                        // all charged
+                    }
+                    Some(cell) => {
+                        cell.charge(sunray);
+                    }
+                }
+
+                //send ack
+                Some(PlanetToOrchestrator::SunrayAck {
+                    planet_id: state.id(),
+                    timestamp: SystemTime::now(),
+                })
+
+            }
+            OrchestratorToPlanet::Asteroid(_) => {
+                None
+            }
+            OrchestratorToPlanet::StartPlanetAI(_) => {
+                None
+            }
+            OrchestratorToPlanet::StopPlanetAI(_) => {
+                None
+
+            }
+            OrchestratorToPlanet::InternalStateRequest(_) => {
+                None
+            }
+        }
     }
 
     fn handle_explorer_msg(
@@ -53,12 +96,12 @@ pub fn create_planet(
     tx_explorer: mpsc::Sender<messages::PlanetToExplorer>
 ) -> Planet<AI> {
     let id = 1;
-    let ai = AI {};
+    let ai = AI {isOn: true};
     let gen_rules = vec![/* your recipes */];
     let comb_rules = vec![/* your recipes */];
 
     // Construct the planet and return it
-    Planet::new(
+    let planet = Planet::new(
         id,
         PlanetType::A,
         ai,
@@ -66,5 +109,7 @@ pub fn create_planet(
         comb_rules,
         (rx_orchestrator, tx_orchestrator),
         (rx_explorer, tx_explorer)
-    ).unwrap() // Don't call .unwrap()! You should do error checking instead.
+    ).unwrap(); // Don't call .unwrap()! You should do error checking instead.
+    planet
 }
+
