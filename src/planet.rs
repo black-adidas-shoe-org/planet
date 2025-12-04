@@ -11,7 +11,7 @@ use common_game::protocols::messages::{
     ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
 };
 use std::os::linux::raw::stat;
-use std::sync::mpsc;
+use std::sync::{Arc, mpsc};
 use std::sync::mpsc::channel;
 use std::time::SystemTime;
 
@@ -57,24 +57,25 @@ impl PlanetAI for AI {
             }
             OrchestratorToPlanet::StartPlanetAI(_) => {
                 self.is_on = true;
-                Some(OrchestratorToPlanet::SrartPlanetAIResult {
+                Some(PlanetToOrchestrator::StartPlanetAIResult {
                     planet_id: state.id(),
                     timestamp: SystemTime::now(),
                 })
             }
             OrchestratorToPlanet::StopPlanetAI(_) => {
                 self.is_on = false;
-                Some(OrchestratorToPlanet::StopPlanetAIResult {
+                Some(PlanetToOrchestrator::StopPlanetAIResult {
                     planet_id: state.id(),
                     timestamp: SystemTime::now(),
                 })
             }
             OrchestratorToPlanet::InternalStateRequest(_) => {
-                Some(OrchestratorToPlanet::InternalStateResponse {
-                    planet_id: state.id(),
-                    planet_state: Arc::clone(state),
-                    timestamp: SystemTime::now(),
-                })
+                //Some(PlanetToOrchestrator::InternalStateResponse {   
+                //    planet_id: state.id(),
+                //    planet_state: state,          IMPOSSIBILE passare lo state, non implementa il Copy trait
+                //    timestamp: SystemTime::now(),
+                //})
+                None
             }
         }
     }
@@ -130,5 +131,5 @@ pub fn create_planet(
         (rx_explorer, tx_explorer),
     )
     .unwrap(); // Don't call .unwrap()! You should do error checking instead.
-    planet
 }
+
