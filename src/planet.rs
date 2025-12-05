@@ -1,27 +1,30 @@
-use common_game::components::energy_cell::EnergyCell;
 use common_game::components::planet::{Planet, PlanetAI, PlanetState, PlanetType};
-use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, Generator, Hydrogen, Oxygen, Silicon};
+use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, Generator};
 use common_game::components::rocket::Rocket;
 use common_game::protocols::messages;
-use common_game::protocols::messages::OrchestratorToPlanet::Sunray;
-use common_game::protocols::messages::PlanetToOrchestrator::{
-    AsteroidAck, InternalStateResponse, StartPlanetAIResult, StopPlanetAIResult,
-};
 use common_game::protocols::messages::{
     ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
 };
-use std::os::linux::raw::stat;
-use std::sync::{Arc, mpsc};
-use std::sync::mpsc::channel;
-use std::time::SystemTime;
+use std::collections::HashSet;
+use std::sync::mpsc::{Receiver, Sender};
+use std::sync::mpsc;
 
 // Group-defined AI struct
 pub struct AI {
     is_on: bool,
-    is_alive: bool
+    is_alive: bool,
+    //I put here the sender since we receive it from a message. To be discussed
+    //Then we have some communication channels in the planet and some in the AI struct.
+    //It sucks, but now that we have the control on the explorer sender, we could also implement multiple explorer for planet!
+
+    explorer_sender: Option<mpsc::Sender<PlanetToExplorer>>
+    // planet: Rc<RefCell<Planet>>??
 }
 
-impl AI{
+impl AI
+where
+    AI: PlanetAI
+{
 
     fn run(
     ){
@@ -32,6 +35,18 @@ impl AI{
          */
 
 
+    }
+
+    fn listen_for_orchestrator(&mut self, sender: Sender<PlanetToOrchestrator>, receiver: Receiver<OrchestratorToPlanet>){
+        for msg in receiver{
+            //here we receive orch messages, we have to bind them to the proper handle messages
+            //in order to call the handle function I need to have the PlanetState. Ho do we get it?
+            //Should we pass a mutable reference of the planet to the AI struct?
+            //I hope there is a bette way that Luca will figure out :)
+            // self.handle_orchestrator_msg(
+            //
+            // )
+        }
     }
 }
 
@@ -66,38 +81,66 @@ impl PlanetAI for AI {
                 //send ack
                 Some(PlanetToOrchestrator::SunrayAck {
                     planet_id: state.id(),
-                    timestamp: SystemTime::now(),
                 })
             }
             OrchestratorToPlanet::Asteroid(_) => {
-                //send the ack
-                Some(PlanetToOrchestrator::AsteroidAck {
-                    planet_id: state.id(),
-                    rocket: None,
-                })
+                match self.handle_asteroid(state, generator, combinator) {
+                    None => {
+                        //destroyed
+                        Some(PlanetToOrchestrator::AsteroidAck {
+                            planet_id: state.id(),
+                            destroyed: true,
+                        })
+                    }
+                    Some(_) => {
+                        // we will never go in this case with our planet
+                        Some(PlanetToOrchestrator::AsteroidAck {
+                            planet_id: state.id(),
+                            destroyed: false,
+                        })
+                    }
+                }
             }
-            OrchestratorToPlanet::StartPlanetAI(_) => {
+            OrchestratorToPlanet::StartPlanetAI => {
                 self.is_on = true;
                 Some(PlanetToOrchestrator::StartPlanetAIResult {
                     planet_id: state.id(),
-                    timestamp: SystemTime::now(),
                 })
             }
-            OrchestratorToPlanet::StopPlanetAI(_) => {
+            OrchestratorToPlanet::StopPlanetAI => {
                 self.is_on = false;
                 Some(PlanetToOrchestrator::StopPlanetAIResult {
                     planet_id: state.id(),
-                    timestamp: SystemTime::now(),
                 })
             }
-            OrchestratorToPlanet::InternalStateRequest(_) => {
-                //Some(PlanetToOrchestrator::InternalStateResponse {   
-                //    planet_id: state.id(),
-                //    planet_state: std::sync::Arc::new(state),          // IMPOSSIBILE passare lo state, non implementa il Copy trait
-                //    timestamp: SystemTime::now(),
-                //})
-                None
+            OrchestratorToPlanet::InternalStateRequest => {
+                Some(PlanetToOrchestrator::InternalStateResponse {
+                   planet_id: state.id(),
+                   planet_state: state.to_dummy(),
+                })
+            },
+            OrchestratorToPlanet::IncomingExplorerRequest{
+                explorer_id, new_mpsc_sender
+            } => {
+                //if there is another explorer, return Err
+                self.explorer_sender = Some(new_mpsc_sender.clone());
+                //TODO
+                Some(PlanetToOrchestrator::IncomingExplorerResponse {
+                    planet_id: state.id(),
+                    res: Err("Error".to_string())
+                })
+            },
+            OrchestratorToPlanet::OutgoingExplorerRequest {
+                explorer_id
+            } =>{
+                //Why shouldn't we permit an explorer to go out?
+                //How do we drop the sender inside here?
+                Some(PlanetToOrchestrator::OutgoingExplorerResponse {
+                    planet_id: state.id(),
+                    res: Ok(())
+                })
             }
+
         }
     }
 
@@ -110,16 +153,25 @@ impl PlanetAI for AI {
     ) -> Option<messages::PlanetToExplorer> {
         // your handler code here...
         match msg {
-            SupportedResourceRequest =>{ 
-                Some(PlanetToExplorer::SupportedResourceResponse { resource_list: Some(generator.all_available_recipes()) })
+            ExplorerToPlanet::SupportedResourceRequest{
+                explorer_id,
+            } => {
+                Some(PlanetToExplorer::SupportedResourceResponse { resource_list: generator.all_available_recipes() })
             },
-            SupportedCombinationRequest =>{ 
+            ExplorerToPlanet::SupportedCombinationRequest {
+                explorer_id
+            } =>{
                 // no combination
-                None
+                Some(PlanetToExplorer::SupportedCombinationResponse{
+                    combination_list: combinator.all_available_recipes(),
+                })
             },
             ExplorerToPlanet::GenerateResourceRequest {explorer_id, resource} =>{ 
                 let cell = (state.cells_iter_mut().find(|c| c.is_charged()));
-
+                //TODO
+                /*
+                Here we are not returning a msg to sent to the explorer, we are returning only None
+                 */
                 match cell {
                     Some(c) => {
                         match resource {
@@ -151,21 +203,29 @@ impl PlanetAI for AI {
                 }
 
             },
-            AvailableEnergyCellRequest =>{ 
+            ExplorerToPlanet::AvailableEnergyCellRequest{
+                explorer_id
+            } =>{
                 let mut cells:u32 = 0 ;
                 state.cells_iter().for_each(|c|  {if c.is_charged() { cells += 1 }});
-
                 Some(PlanetToExplorer::AvailableEnergyCellResponse { available_cells: cells })
                 
             },
-            CombineResourceRequest =>{
+            ExplorerToPlanet::CombineResourceRequest{
+                explorer_id, msg
+            } =>{
                 // no combination
+                // TODO
+                // here we send an error and send back the resource that the exp sended to the planet
+                // How do we do that? What is the msg param?
+                /*
+                Some(PlanetToExplorer::CombineResourceResponse {
+                    complex_response: Err((
+                        "No combination supported".to_string(),
+                    )),
+                })*/
                 None
             },
-            InternalStateRequest =>{ 
-                // Some(messages::PlanetToExplorer::InternalStateResponse  { planet_state: state })
-                None
-            }
         }   
     }
 
@@ -208,25 +268,24 @@ impl PlanetAI for AI {
 // This is the group's "export" function. It will be called by
 // the orchestrator to spawn your planet.
 pub fn create_planet(
+    id: u8,
     rx_orchestrator: mpsc::Receiver<messages::OrchestratorToPlanet>,
     tx_orchestrator: mpsc::Sender<messages::PlanetToOrchestrator>,
     rx_explorer: mpsc::Receiver<messages::ExplorerToPlanet>,
-    tx_explorer: mpsc::Sender<messages::PlanetToExplorer>,
-) -> Result<Planet<AI>, String> {
-    let id = 104;
-    let ai = AI { is_on: false, is_alive: true};
+) -> Result<Planet, String> {
+    let ai = AI { is_on: false, is_alive: true, explorer_sender: None};
     let gen_rules = vec![BasicResourceType::Oxygen, BasicResourceType::Hydrogen, BasicResourceType::Carbon];
     let comb_rules = vec![];
 
     // Construct the planet and return it
     let planet = Planet::new(
-        id,
+        id as u32,
         PlanetType::D,
-        ai,
+        Box::new(ai),
         gen_rules,
         comb_rules,
         (rx_orchestrator, tx_orchestrator),
-        (rx_explorer, tx_explorer),
+        rx_explorer,
     );
 
     planet
