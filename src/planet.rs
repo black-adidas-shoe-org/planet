@@ -18,8 +18,29 @@ use std::time::SystemTime;
 // Group-defined AI struct
 pub struct AI {
     is_on: bool,
+    is_alive: bool
 }
 
+impl AI{
+
+    fn run(
+    ){
+        /*
+        PLANET AI PURPOSE
+        Read messages from each channel, and call the handle_msg method each time that
+        a message arrives, and stop this behavior when it get killed.
+         */
+
+
+    }
+}
+
+//IMPORTANT:
+/*
+TODO
+We need to check simultaneously 2 channels, so we should generate 2 threads for each fifo.
+This leads us to implement mutex for the state
+ */
 impl PlanetAI for AI {
     fn handle_orchestrator_msg(
         &mut self,
@@ -159,10 +180,26 @@ impl PlanetAI for AI {
     }
 
     fn start(&mut self, state: &PlanetState) { 
+        if !self.is_alive{
+            //the planet has been destroyed
+            return;
+        }
         /* startup code */
+
+
+
+
+
+
         self.is_on = true;
+
     }
-    fn stop(&mut self, state: &PlanetState) { 
+    fn stop(&mut self, state: &PlanetState) {
+        if !self.is_alive{
+            //the planet has been destroyed
+            return;
+        }
+
         /* stop code */
         self.is_on = false;
     }
@@ -176,8 +213,8 @@ pub fn create_planet(
     rx_explorer: mpsc::Receiver<messages::ExplorerToPlanet>,
     tx_explorer: mpsc::Sender<messages::PlanetToExplorer>,
 ) -> Result<Planet<AI>, String> {
-    let id = 109;
-    let ai = AI { is_on: true };
+    let id = 104;
+    let ai = AI { is_on: false, is_alive: true};
     let gen_rules = vec![BasicResourceType::Oxygen, BasicResourceType::Hydrogen, BasicResourceType::Carbon];
     let comb_rules = vec![];
 
