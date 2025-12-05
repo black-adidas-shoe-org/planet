@@ -158,9 +158,13 @@ impl PlanetAI for AI {
         state.take_rocket()
     }
 
-    fn start(&mut self, state: &PlanetState) { /* startup code */
+    fn start(&mut self, state: &PlanetState) { 
+        /* startup code */
+        self.is_on = true;
     }
-    fn stop(&mut self, state: &PlanetState) { /* stop code */
+    fn stop(&mut self, state: &PlanetState) { 
+        /* stop code */
+        self.is_on = false;
     }
 }
 
