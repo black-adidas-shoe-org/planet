@@ -1,6 +1,6 @@
 use common_game::components::energy_cell::EnergyCell;
 use common_game::components::planet::{Planet, PlanetAI, PlanetState, PlanetType};
-use common_game::components::resource::{BasicResourceType, Combinator, Generator};
+use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, Generator, Hydrogen, Oxygen, Silicon};
 use common_game::components::rocket::Rocket;
 use common_game::protocols::messages;
 use common_game::protocols::messages::OrchestratorToPlanet::Sunray;
@@ -72,7 +72,7 @@ impl PlanetAI for AI {
             OrchestratorToPlanet::InternalStateRequest(_) => {
                 //Some(PlanetToOrchestrator::InternalStateResponse {   
                 //    planet_id: state.id(),
-                //    planet_state: state,          IMPOSSIBILE passare lo state, non implementa il Copy trait
+                //    planet_state: std::sync::Arc::new(state),          // IMPOSSIBILE passare lo state, non implementa il Copy trait
                 //    timestamp: SystemTime::now(),
                 //})
                 None
@@ -88,7 +88,64 @@ impl PlanetAI for AI {
         msg: messages::ExplorerToPlanet,
     ) -> Option<messages::PlanetToExplorer> {
         // your handler code here...
-        None
+        match msg {
+            SupportedResourceRequest =>{ 
+                Some(PlanetToExplorer::SupportedResourceResponse { resource_list: Some(generator.all_available_recipes()) })
+            },
+            SupportedCombinationRequest =>{ 
+                // no combination
+                None
+            },
+            ExplorerToPlanet::GenerateResourceRequest {explorer_id, resource} =>{ 
+                let cell = (state.cells_iter_mut().find(|c| c.is_charged()));
+
+                match cell {
+                    Some(c) => {
+                        match resource {
+                            BasicResourceType::Silicon=> None,
+                            BasicResourceType::Oxygen => {
+                                let r = generator.make_oxygen(c);
+                                match r {
+                                    Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Oxygen(o))}),
+                                    Err(_) => None,
+                                }
+                            },
+                            BasicResourceType::Hydrogen=> {
+                                let r = generator.make_hydrogen(c);
+                                match r {
+                                    Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Hydrogen(o))}),
+                                    Err(_) => None,
+                                }
+                            },
+                            BasicResourceType::Carbon=> {
+                                let r = generator.make_carbon(c);
+                                match r {
+                                    Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Carbon(o))}),
+                                    Err(_) => None,
+                                }
+                            }
+                        }
+                    },
+                    None => None,
+                }
+
+            },
+            AvailableEnergyCellRequest =>{ 
+                let mut cells:u32 = 0 ;
+                state.cells_iter().for_each(|c|  {if c.is_charged() { cells += 1 }});
+
+                Some(PlanetToExplorer::AvailableEnergyCellResponse { available_cells: cells })
+                
+            },
+            CombineResourceRequest =>{
+                // no combination
+                None
+            },
+            InternalStateRequest =>{ 
+                // Some(messages::PlanetToExplorer::InternalStateResponse  { planet_state: state })
+                None
+            }
+        }   
     }
 
     fn handle_asteroid(
@@ -97,8 +154,8 @@ impl PlanetAI for AI {
         generator: &Generator,
         combinator: &Combinator,
     ) -> Option<Rocket> {
-        // your handler code here...
-        None
+        // I think this should be enough
+        state.take_rocket()
     }
 
     fn start(&mut self, state: &PlanetState) { /* startup code */
@@ -114,23 +171,22 @@ pub fn create_planet(
     tx_orchestrator: mpsc::Sender<messages::PlanetToOrchestrator>,
     rx_explorer: mpsc::Receiver<messages::ExplorerToPlanet>,
     tx_explorer: mpsc::Sender<messages::PlanetToExplorer>,
-) -> Result<Planet<AI>, String> {
-    let id = 109;
+) -> Planet<AI> {
+    let id = 1;
     let ai = AI { is_on: true };
-    let gen_rules = vec![BasicResourceType::Carbon, BasicResourceType::Hydrogen, BasicResourceType::Oxygen];
-    let comb_rules = vec![];
+    let gen_rules = vec![/* your recipes */];
+    let comb_rules = vec![/* your recipes */];
 
     // Construct the planet and return it
     let planet = Planet::new(
         id,
-        PlanetType::D,
+        PlanetType::A,
         ai,
         gen_rules,
         comb_rules,
         (rx_orchestrator, tx_orchestrator),
         (rx_explorer, tx_explorer),
-    );
-
+    )
+    .unwrap(); // Don't call .unwrap()! You should do error checking instead.
     planet
 }
-
