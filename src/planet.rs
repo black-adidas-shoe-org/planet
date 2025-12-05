@@ -171,22 +171,22 @@ pub fn create_planet(
     tx_orchestrator: mpsc::Sender<messages::PlanetToOrchestrator>,
     rx_explorer: mpsc::Receiver<messages::ExplorerToPlanet>,
     tx_explorer: mpsc::Sender<messages::PlanetToExplorer>,
-) -> Planet<AI> {
-    let id = 1;
+) -> Result<Planet<AI>, String> {
+    let id = 109;
     let ai = AI { is_on: true };
-    let gen_rules = vec![/* your recipes */];
-    let comb_rules = vec![/* your recipes */];
+    let gen_rules = vec![BasicResourceType::Oxygen, BasicResourceType::Hydrogen, BasicResourceType::Carbon];
+    let comb_rules = vec![];
 
     // Construct the planet and return it
     let planet = Planet::new(
         id,
-        PlanetType::A,
+        PlanetType::D,
         ai,
         gen_rules,
         comb_rules,
         (rx_orchestrator, tx_orchestrator),
         (rx_explorer, tx_explorer),
-    )
-    .unwrap(); // Don't call .unwrap()! You should do error checking instead.
+    );
+
     planet
 }
