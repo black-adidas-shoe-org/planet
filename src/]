@@ -98,40 +98,35 @@ impl PlanetAI for AI {
             },
             ExplorerToPlanet::GenerateResourceRequest {explorer_id, resource} =>{ 
                 let cell = (state.cells_iter_mut().find(|c| c.is_charged()));
+                let r = generator.make_oxygen(cell.unwrap());
 
-                match cell {
-                    Some(c) => {
-                        match resource {
-                            BasicResourceType::Silicon=> None,
-                            BasicResourceType::Oxygen => {
-                                let r = generator.make_oxygen(c);
-                                match r {
-                                    Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Oxygen(o))}),
-                                    Err(_) => None,
-                                }
-                            },
-                            BasicResourceType::Hydrogen=> {
-                                let r = generator.make_hydrogen(c);
-                                match r {
-                                    Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Hydrogen(o))}),
-                                    Err(_) => None,
-                                }
-                            },
-                            BasicResourceType::Carbon=> {
-                                let r = generator.make_carbon(c);
-                                match r {
-                                    Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Carbon(o))}),
-                                    Err(_) => None,
-                                }
-                            }
-                        }
-                    },
-                    None => None,
+
+                match r {
+                    Ok(c) => Some(PlanetToExplorer::GenerateResourceResponse { resource: Some(BasicResource::Oxygen(c))) }),
+                    Err(_) => None,
                 }
 
+
+
+
+
+
+
+                /*
+                Some(PlanetToExplorer::GenerateResourceResponse { 
+                    resource:{
+                        match resource{
+                            Oxygen => None,
+                            Hydrogen => None, // to implement
+                            Carbon => None, // to implement
+                            Silicon=> None, 
+                        }
+                    }
+                })
+                */
             },
             AvailableEnergyCellRequest =>{ 
-                let mut cells:u32 = 0 ;
+                let cells:u32 = 0 ;
                 state.cells_iter().for_each(|c|  {if c.is_charged() { cells += 1 }});
 
                 Some(PlanetToExplorer::AvailableEnergyCellResponse { available_cells: cells })
