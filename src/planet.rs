@@ -1,5 +1,5 @@
 use common_game::components::planet::{Planet, PlanetAI, PlanetState, PlanetType};
-use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, Generator};
+use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, ComplexResourceRequest, Generator};
 use common_game::components::rocket::Rocket;
 use common_game::protocols::messages;
 use common_game::protocols::messages::{
@@ -53,8 +53,8 @@ where
 //IMPORTANT:
 /*
 TODO
-We need to check simultaneously 2 channels, so we should generate 2 threads for each fifo.
-This leads us to implement mutex for the state
+ We need to check simultaneously 2 channels, so we should generate 2 threads for each fifo.
+ This leads us to implement mutex for the state
  */
 impl PlanetAI for AI {
     fn handle_orchestrator_msg(
@@ -83,64 +83,13 @@ impl PlanetAI for AI {
                     planet_id: state.id(),
                 })
             }
-            OrchestratorToPlanet::Asteroid(_) => {
-                match self.handle_asteroid(state, generator, combinator) {
-                    None => {
-                        //destroyed
-                        Some(PlanetToOrchestrator::AsteroidAck {
-                            planet_id: state.id(),
-                            destroyed: true,
-                        })
-                    }
-                    Some(_) => {
-                        // we will never go in this case with our planet
-                        Some(PlanetToOrchestrator::AsteroidAck {
-                            planet_id: state.id(),
-                            destroyed: false,
-                        })
-                    }
-                }
-            }
-            OrchestratorToPlanet::StartPlanetAI => {
-                self.is_on = true;
-                Some(PlanetToOrchestrator::StartPlanetAIResult {
-                    planet_id: state.id(),
-                })
-            }
-            OrchestratorToPlanet::StopPlanetAI => {
-                self.is_on = false;
-                Some(PlanetToOrchestrator::StopPlanetAIResult {
-                    planet_id: state.id(),
-                })
-            }
             OrchestratorToPlanet::InternalStateRequest => {
                 Some(PlanetToOrchestrator::InternalStateResponse {
                    planet_id: state.id(),
                    planet_state: state.to_dummy(),
                 })
             },
-            OrchestratorToPlanet::IncomingExplorerRequest{
-                explorer_id, new_mpsc_sender
-            } => {
-                //if there is another explorer, return Err
-                self.explorer_sender = Some(new_mpsc_sender.clone());
-                //TODO
-                Some(PlanetToOrchestrator::IncomingExplorerResponse {
-                    planet_id: state.id(),
-                    res: Err("Error".to_string())
-                })
-            },
-            OrchestratorToPlanet::OutgoingExplorerRequest {
-                explorer_id
-            } =>{
-                //Why shouldn't we permit an explorer to go out?
-                //How do we drop the sender inside here?
-                Some(PlanetToOrchestrator::OutgoingExplorerResponse {
-                    planet_id: state.id(),
-                    res: Ok(())
-                })
-            }
-
+            _ => None
         }
     }
 
@@ -216,8 +165,8 @@ impl PlanetAI for AI {
             } =>{
                 // no combination
                 // TODO
-                // here we send an error and send back the resource that the exp sended to the planet
-                // How do we do that? What is the msg param?
+                //  here we send an error and send back the resource that the exp sended to the planet
+                //  How do we do that? What is the msg param?
                 /*
                 Some(PlanetToExplorer::CombineResourceResponse {
                     complex_response: Err((
@@ -290,3 +239,4 @@ pub fn create_planet(
 
     planet
 }
+
