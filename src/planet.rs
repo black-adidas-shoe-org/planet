@@ -17,7 +17,7 @@ pub struct AI {
 }
 
 impl AI{
-    fn new(is_on: bool)->Self{
+    pub fn new(is_on: bool)->Self{
         Self{
             is_on
         }
