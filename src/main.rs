@@ -10,13 +10,13 @@ fn main() {
 
     env_logger::init();
     LogEvent::new(
-        ActorType::Orchestrator,
-        45 as u64,
         ActorType::Planet,
-        String::from("903"),
+        123u64,
+        ActorType::Orchestrator,
+        String::from("1"),
         EventType::MessageOrchestratorToPlanet,
         Channel::Error,
-        payload
+        Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
     ).emit();
 
 

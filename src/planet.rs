@@ -9,6 +9,7 @@ use common_game::protocols::messages::{
     ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
 };
 use std::sync::mpsc;
+use common_game::logging::{ActorType, Channel, EventType, LogEvent, Payload};
 
 // Group-defined AI struct
 pub struct AI {
@@ -33,6 +34,15 @@ impl PlanetAI for AI {
     ) -> Option<PlanetToOrchestrator> {
         // check on the AI state
         if !self.is_on{
+            LogEvent::new(
+                ActorType::Planet,
+                state.id(),
+                ActorType::Orchestrator,
+                String::from("1"),
+                EventType::MessageOrchestratorToPlanet,
+                Channel::Error,
+                Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
+            ).emit();
             return None
         }
 
@@ -43,8 +53,26 @@ impl PlanetAI for AI {
 
                 if let Some(_) = state.charge_cell(sunray){
                     // cell charged
+                    LogEvent::new(
+                        ActorType::Planet,
+                        state.id(),
+                        ActorType::Orchestrator,
+                        String::from("1"),
+                        EventType::MessageOrchestratorToPlanet,
+                        Channel::Info,
+                        Payload::from([("Cell charged".to_string(), "Cell recharged correctly".to_string())])
+                    ).emit();
                 }else{
                     // not charged, full cells
+                    LogEvent::new(
+                        ActorType::Planet,
+                        state.id(),
+                        ActorType::Orchestrator,
+                        String::from("1"),
+                        EventType::MessageOrchestratorToPlanet,
+                        Channel::Warning,
+                        Payload::from([("Not able to charge cell".to_string(), "All cells are already charged".to_string())])
+                    ).emit();
                 }
 
                 //send ack
@@ -71,6 +99,15 @@ impl PlanetAI for AI {
     ) -> Option<messages::PlanetToExplorer> {
         // check on the AI state
         if !self.is_on{
+            LogEvent::new(
+                ActorType::Planet,
+                state.id(),
+                ActorType::Orchestrator,
+                String::from("1"),
+                EventType::MessageOrchestratorToPlanet,
+                Channel::Error,
+                Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
+            ).emit();
             return None
         }
 
@@ -210,6 +247,6 @@ pub fn create_planet(
         (rx_orchestrator, tx_orchestrator),
         rx_explorer,
     );
-
+    
     planet
 }
