@@ -119,20 +119,20 @@ impl PlanetAI for AI {
                 resource,
             } => {
                 let cell = (state.cells_iter_mut().find(|c| c.is_charged()));
-                //TODO
-                /*
-                Here we are not returning a msg to sent to the explorer, we are returning only None
-                 */
                 match cell {
                     Some(c) => match resource {
-                        BasicResourceType::Silicon => None,
+                        BasicResourceType::Silicon => {
+                            Some(PlanetToExplorer::GenerateResourceResponse { resource: None })
+                        }
                         BasicResourceType::Oxygen => {
                             let r = generator.make_oxygen(c);
                             match r {
                                 Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse {
                                     resource: Some(BasicResource::Oxygen(o)),
                                 }),
-                                Err(_) => None,
+                                Err(_) => Some(PlanetToExplorer::GenerateResourceResponse {
+                                    resource: None,
+                                }),
                             }
                         }
                         BasicResourceType::Hydrogen => {
@@ -141,7 +141,9 @@ impl PlanetAI for AI {
                                 Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse {
                                     resource: Some(BasicResource::Hydrogen(o)),
                                 }),
-                                Err(_) => None,
+                                Err(_) => Some(PlanetToExplorer::GenerateResourceResponse {
+                                    resource: None,
+                                }),
                             }
                         }
                         BasicResourceType::Carbon => {
@@ -150,11 +152,13 @@ impl PlanetAI for AI {
                                 Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse {
                                     resource: Some(BasicResource::Carbon(o)),
                                 }),
-                                Err(_) => None,
+                                Err(_) => Some(PlanetToExplorer::GenerateResourceResponse {
+                                    resource: None,
+                                }),
                             }
                         }
                     },
-                    None => None,
+                    None => Some(PlanetToExplorer::GenerateResourceResponse { resource: None }),
                 }
             }
             ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id } => {
