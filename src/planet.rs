@@ -8,23 +8,29 @@ use common_game::protocols::messages;
 use common_game::protocols::messages::{
     ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
 };
-use std::collections::HashSet;
 use std::sync::mpsc;
-use std::sync::mpsc::{Receiver, Sender};
 
 // Group-defined AI struct
 pub struct AI {
     is_on: bool,
 }
 
+impl AI{
+    fn new(is_on: bool)->Self{
+        Self{
+            is_on
+        }
+    }
+}
+
 impl PlanetAI for AI {
     fn handle_orchestrator_msg(
         &mut self,
         state: &mut PlanetState,
-        generator: &Generator,
-        combinator: &Combinator,
-        msg: messages::OrchestratorToPlanet,
-    ) -> Option<messages::PlanetToOrchestrator> {
+        _generator: &Generator,
+        _combinator: &Combinator,
+        msg: OrchestratorToPlanet,
+    ) -> Option<PlanetToOrchestrator> {
         // check on the AI state
         if !self.is_on{
             return None
@@ -70,19 +76,20 @@ impl PlanetAI for AI {
 
         //match on the message type
         match msg {
-            ExplorerToPlanet::SupportedResourceRequest { explorer_id } => {
+            ExplorerToPlanet::SupportedResourceRequest { explorer_id: _ } => {
                 Some(PlanetToExplorer::SupportedResourceResponse {
                     resource_list: generator.all_available_recipes(),
                 })
             }
-            ExplorerToPlanet::SupportedCombinationRequest { explorer_id } => {
+            ExplorerToPlanet::SupportedCombinationRequest { explorer_id: _ } => {
                 // no combination
                 Some(PlanetToExplorer::SupportedCombinationResponse {
                     combination_list: combinator.all_available_recipes(),
                 })
             }
             ExplorerToPlanet::GenerateResourceRequest {
-                resource, ..
+                explorer_id: _,
+                resource,
             } => {
                 match state.full_cell() {
                     Some((cell, _)) => match resource {
@@ -133,12 +140,12 @@ impl PlanetAI for AI {
                     None => Some(PlanetToExplorer::GenerateResourceResponse { resource: None }),
                 }
             }
-            ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id } => {
+            ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id: _ } => {
                 Some(PlanetToExplorer::AvailableEnergyCellResponse {
                     available_cells: state.cells_count() as u32,
                 })
             }
-            ExplorerToPlanet::CombineResourceRequest { explorer_id, msg } => {
+            ExplorerToPlanet::CombineResourceRequest { explorer_id: _, msg } => {
                 let basic = |res| GenericResource::BasicResources(res);
                 let complex = |res| GenericResource::ComplexResources(res);
 
@@ -163,16 +170,16 @@ impl PlanetAI for AI {
     fn handle_asteroid(
         &mut self,
         state: &mut PlanetState,
-        generator: &Generator,
-        combinator: &Combinator,
+        _generator: &Generator,
+        _combinator: &Combinator,
     ) -> Option<Rocket> {
         state.take_rocket()
     }
 
-    fn start(&mut self, state: &PlanetState) {
+    fn start(&mut self, _state: &PlanetState) {
         self.is_on = true;
     }
-    fn stop(&mut self, state: &PlanetState) {
+    fn stop(&mut self, _state: &PlanetState) {
         self.is_on = false;
     }
 }
@@ -185,9 +192,7 @@ pub fn create_planet(
     tx_orchestrator: mpsc::Sender<messages::PlanetToOrchestrator>,
     rx_explorer: mpsc::Receiver<messages::ExplorerToPlanet>,
 ) -> Result<Planet, String> {
-    let ai = AI {
-        is_on: false,
-    };
+    let ai = AI::new(false);
     let gen_rules = vec![
         BasicResourceType::Oxygen,
         BasicResourceType::Hydrogen,
