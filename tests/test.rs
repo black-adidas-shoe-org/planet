@@ -1,148 +1,194 @@
 use common_game::components::forge::Forge;
-use common_game::components::resource::BasicResourceType;
+use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, Generator};
 use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
 use planet::planet::create_planet;
 use crossbeam_channel::{Sender, Receiver, unbounded, RecvTimeoutError};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
-struct Environement {
-    phandle: JoinHandle<()>,
-    tx_otp: Sender<OrchestratorToPlanet>,
-    rx_pto: Receiver<PlanetToOrchestrator>,
-    tx_etp: Sender<ExplorerToPlanet>,
-    rx_pte: Receiver<PlanetToExplorer>,
-    tx_pte: Sender<PlanetToExplorer>,
-    _tx_pto_keep: Sender<PlanetToOrchestrator>,
+// Handling the shared forge
+use once_cell::sync::Lazy;
+use std::sync::Mutex;
+static FORGE: Lazy<Mutex<Forge>> = Lazy::new(|| Mutex::new(Forge::new().unwrap()));
+fn get_forge() -> std::sync::MutexGuard<'static, Forge> {
+    FORGE.lock().unwrap()
+}
+
+pub struct Environement {
+    pub phandle: Option<JoinHandle<()>>,
+    pub tx_otp: Sender<OrchestratorToPlanet>,
+    pub rx_pto: Receiver<PlanetToOrchestrator>,
+    pub tx_etp: Sender<ExplorerToPlanet>,
+    pub rx_pte: Receiver<PlanetToExplorer>,
+    pub tx_pte: Sender<PlanetToExplorer>,
 }
 
 impl Environement {
-    fn new(ai_state: bool) -> Self {
-        let (tx_otp, rx_otp) = unbounded();
-        let (tx_pto, rx_pto) = unbounded();
-        let (tx_etp, rx_etp) = unbounded();
-        let (tx_pte, rx_pte) = unbounded();
+    pub fn new(start_ai: bool) -> Self {
+        let (tx_otp, rx_otp) = unbounded::<OrchestratorToPlanet>();
+        let (tx_pto, rx_pto) = unbounded::<PlanetToOrchestrator>();
+        let (tx_etp, rx_etp) = unbounded::<ExplorerToPlanet>();
+        let (tx_pte, rx_pte) = unbounded::<PlanetToExplorer>();
 
-        let mut planet = create_planet(1, rx_otp, tx_pto.clone(), rx_etp).unwrap();
+        let mut planet = create_planet(1, rx_otp, tx_pto.clone(), rx_etp)
+            .expect("Failed to create planet");
 
-        // spawn the blocking run() in a thread
         let phandle = std::thread::spawn(move || {
-            // if run() returns Err, ignore it for the test (or you can assert inside)
             let _ = planet.run();
         });
 
-        // small pause so the planet thread starts and blocks in wait_for_start()
-        std::thread::sleep(Duration::from_millis(20));
-
-        // optionally start the AI immediately
-        if ai_state {
+        if start_ai {
             tx_otp
                 .send(OrchestratorToPlanet::StartPlanetAI)
-                .expect("send StartPlanetAI failed");
-            // give a tiny moment for planet to process the Start
-            std::thread::sleep(Duration::from_millis(10));
+                .expect("Failed to send StartPlanetAI");
+            rx_pto.recv().expect("Expected the start ack message");
         }
 
         Self {
-            phandle,
+            phandle: Some(phandle),
             tx_otp,
             rx_pto,
             tx_etp,
             rx_pte,
             tx_pte,
-            _tx_pto_keep: tx_pto, // keep-alive
         }
     }
-    fn send_otp(&self, msg: OrchestratorToPlanet) {
-        self.tx_otp.send(msg).expect("send_otp failed");
+
+    pub fn send_otp(&self, msg: OrchestratorToPlanet) {
+        self.tx_otp.send(msg).expect("Failed to send OTP message");
     }
 
-    fn recv_pto(&self) -> Result<PlanetToOrchestrator, RecvTimeoutError> {
+    pub fn recv_pto(&self) -> Result<PlanetToOrchestrator, RecvTimeoutError> {
         self.rx_pto.recv_timeout(Duration::from_millis(150))
     }
 
-    fn send_etp(&self, msg: ExplorerToPlanet) {
-        self.tx_etp.send(msg).expect("send_etp failed");
+    pub fn send_etp(&self, msg: ExplorerToPlanet) {
+        self.tx_etp.send(msg).expect("Failed to send ETP message");
     }
 
-    fn recv_pte(&self) -> Result<PlanetToExplorer, RecvTimeoutError> {
+    pub fn recv_pte(&self) -> Result<PlanetToExplorer, RecvTimeoutError> {
         self.rx_pte.recv_timeout(Duration::from_millis(150))
     }
 
-    fn enable_explorer(&self) {
+    pub fn enable_explorer(&self) {
         self.send_otp(OrchestratorToPlanet::IncomingExplorerRequest {
             explorer_id: 1,
             new_mpsc_sender: self.tx_pte.clone(),
         });
-        self.recv_pto().expect("Explorer not enabled"); // receive ack
+
+        // Wait for ack from planet
+        match self.recv_pto() {
+            Ok(PlanetToOrchestrator::IncomingExplorerResponse { .. }) => {}
+            Ok(msg) => panic!("Unexpected message while enabling explorer"),
+            Err(e) => panic!("Explorer not enabled, recv error"),
+        }
     }
 }
 
+// impl Drop for Environement {
+//     fn drop(&mut self) {
+//         // Try to stop the AI/planet gracefully
+//         let _ = self.tx_otp.send(OrchestratorToPlanet::StopPlanetAI);
+//
+//         // Wait for the thread to finish
+//         if let Some(handle) = self.phandle.take() {
+//             if let Err(e) = handle.join() {
+//                 eprintln!("Planet thread panicked: {:?}", e);
+//             }
+//         }
+//     }
+// }
+
 #[test]
 fn test_ai_disabled_behavior() {
-    println!("Building planet with AI offline...");
     let env = Environement::new(false);
 
-    println!("Sending dummy request...");
     env.send_otp(OrchestratorToPlanet::InternalStateRequest);
 
-    let got = env.recv_pto();
-    assert!(got.is_err(), "Expected no response since AI is off");
+    match env.recv_pto() {
+        Ok(PlanetToOrchestrator::Stopped { planet_id }) => {
+            println!("Received expected Stopped message from planet {}", planet_id);
+        }
+        Ok(other) => panic!("Unexpected response (expected Stopped)"),
+        Err(_) => panic!("No response received (expected Stopped)"),
+    }
 }
 
 
 
 #[test]
 fn test_orchestrator_sunray_ack() {
-    println!("Building planet and sunray...");
-    let forge = Forge::new().unwrap();
+    let forge = get_forge();
     let sunray = forge.generate_sunray();
     let env = Environement::new(true);
 
-    println!("Sending sunray...");
     env.send_otp(OrchestratorToPlanet::Sunray(sunray));
-    let resp = env.recv_pto().unwrap();
+    let resp = env.recv_pto().expect("Expected a response from planet");
 
     match resp {
         PlanetToOrchestrator::SunrayAck { planet_id } => {
-            assert_eq!(planet_id, 1, "Expected id of the planet (1)");
+            assert_eq!(planet_id, 1, "Unexpected planet id (should be 1)");
         }
-        _ => panic!("Expected SunrayAck"),
+        _ => panic!("Unexpected response (expected SunrayAck)"),
     }
 }
 
+#[test]
+fn test_orchestrator_internal_state_request() {
+    let env = Environement::new(true);
+
+    env.send_otp(OrchestratorToPlanet::InternalStateRequest);
+    let resp = env.recv_pto().expect("Expected a response from planet");
+
+    match resp {
+        PlanetToOrchestrator::InternalStateResponse { planet_id, planet_state } => {
+            assert_eq!(planet_id, 1, "Unexpected planet id (should be 1)");
+        }
+        _ => panic!("Unexpected response (expected InternalStateResponse)"),
+    }
+}
+
+#[test]
+fn test_available_cells() {
+    let env = Environement::new(true);
+
+    env.enable_explorer();
+
+    env.send_etp(ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id: 1 });
+    let resp = env.recv_pte().unwrap();
+    match resp {
+        PlanetToExplorer::AvailableEnergyCellResponse { available_cells } => {
+            assert_eq!(available_cells, 5, "Five cells should be available");
+        }
+        _ => panic!("Unexpected response (expected SupportedResourceResponse)"),
+    }
+}
 
 #[test]
 fn test_explorer_supported_resources() {
-    println!("Building planet...");
     let env = Environement::new(true);
 
-    println!("Enabling explorer...");
     env.enable_explorer();
 
-    println!("Sending resource request...");
     env.send_etp(ExplorerToPlanet::SupportedResourceRequest { explorer_id: 1 });
     let resp = env.recv_pte().unwrap();
     match resp {
         PlanetToExplorer::SupportedResourceResponse { resource_list } => {
-            assert!(resource_list.contains(&BasicResourceType::Oxygen));
-            assert!(resource_list.contains(&BasicResourceType::Hydrogen));
-            assert!(resource_list.contains(&BasicResourceType::Carbon));
-            assert!(!resource_list.contains(&BasicResourceType::Silicon));
+            assert!(resource_list.contains(&BasicResourceType::Oxygen), "Oxygen missing");
+            assert!(resource_list.contains(&BasicResourceType::Hydrogen), "Hydrogen missing");
+            assert!(resource_list.contains(&BasicResourceType::Carbon), "Carbon missing");
+            assert!(!resource_list.contains(&BasicResourceType::Silicon), "Silicon shouldn't be available");
         }
-        _ => panic!("Expected SupportedResourceResponse"),
+        _ => panic!("Unexpected response (expected SupportedResourceResponse)"),
     }
 }
 
 #[test]
 fn test_failed_explorer_request_oxygen() {
-    println!("Building planet...");
     let env = Environement::new(true);
 
-    println!("Enabling explorer...");
     env.enable_explorer();
 
-    println!("Sending resource request...");
     env.send_etp(ExplorerToPlanet::GenerateResourceRequest {
         explorer_id: 1,
         resource: BasicResourceType::Oxygen,
@@ -151,26 +197,22 @@ fn test_failed_explorer_request_oxygen() {
     let resp = env.recv_pte().unwrap();
     match resp {
         PlanetToExplorer::GenerateResourceResponse { resource } => {
-            assert!(resource.is_none(), "No cells to generate resource");
+            assert!(resource.is_none(), "Unexpected resource (none should be available)");
         }
-        _ => panic!("Expected GenerateResourceResponse"),
+        _ => panic!("Unexpected response (expected GenerateResourceResponse)"),
     }
 }
 
 #[test]
 fn test_success_explorer_request_oxygen() {
-    println!("Building planet...");
+    let forge = get_forge();
+    let sunray = forge.generate_sunray();
     let env = Environement::new(true);
 
-    println!("Enabling explorer...");
     env.enable_explorer();
 
-    println!("Charging cell...");
-    let forge = Forge::new().unwrap();
-    let sunray = forge.generate_sunray();
     env.send_otp(OrchestratorToPlanet::Sunray(sunray));
 
-    println!("Sending resource request...");
     env.send_etp(ExplorerToPlanet::GenerateResourceRequest {
         explorer_id: 1,
         resource: BasicResourceType::Oxygen,
@@ -179,8 +221,75 @@ fn test_success_explorer_request_oxygen() {
     let resp = env.recv_pte().unwrap();
     match resp {
         PlanetToExplorer::GenerateResourceResponse { resource } => {
-            assert_eq!(resource.unwrap().get_type(), BasicResourceType::Oxygen, "No cells to generate resource");
+            assert_eq!(resource.unwrap().get_type(), BasicResourceType::Oxygen, "Resource should be available and be Oxygen");
         }
-        _ => panic!("Expected GenerateResourceResponse"),
+        _ => panic!("Unexpected response (expected GenerateResourceResponse)"),
     }
 }
+
+#[test]
+fn test_explorer_supported_combinations() {
+    let env = Environement::new(true);
+
+    env.enable_explorer();
+
+    env.send_etp(ExplorerToPlanet::SupportedCombinationRequest { explorer_id: 1 });
+    let resp = env.recv_pte().unwrap();
+    match resp {
+        PlanetToExplorer::SupportedCombinationResponse { combination_list } => {
+            assert!(combination_list.is_empty(), "Unexpected combination list, it should be empty");
+        }
+        _ => panic!("Unexpected response (expected SupportedCombinationResponse)"),
+    }
+}
+
+#[test]
+fn test_explorer_combination_request() {
+    let forge = get_forge();
+    let sunray1 = forge.generate_sunray();
+    let sunray2 = forge.generate_sunray();
+    let env = Environement::new(true);
+
+    env.enable_explorer();
+    env.send_otp(OrchestratorToPlanet::Sunray(sunray1));
+    env.recv_pto().expect("..");
+
+    env.enable_explorer();
+    env.send_otp(OrchestratorToPlanet::Sunray(sunray2));
+    env.recv_pto().expect("..");
+
+    env.send_etp(ExplorerToPlanet::GenerateResourceRequest {
+        explorer_id: 1,
+        resource: BasicResourceType::Carbon,
+    });
+    let c1 = match env.recv_pte().unwrap() {
+        PlanetToExplorer::GenerateResourceResponse { resource: Some(r) } => { r.to_carbon().unwrap() }
+        _ => panic!(""),
+    };
+
+    env.send_etp(ExplorerToPlanet::GenerateResourceRequest {
+        explorer_id: 1,
+        resource: BasicResourceType::Carbon,
+    });
+    let c2 = match env.recv_pte().unwrap() {
+        PlanetToExplorer::GenerateResourceResponse { resource: Some(r) } => { r.to_carbon().unwrap() }
+        _ => panic!(""),
+    };
+
+
+    env.send_etp(ExplorerToPlanet::CombineResourceRequest { explorer_id: 1,
+        msg: ComplexResourceRequest::Diamond(c1, c2)});
+
+    let resp = env.recv_pte().unwrap();
+    match resp {
+        PlanetToExplorer::CombineResourceResponse { complex_response } => {
+            match complex_response {
+                Err((msg, _, _)) => assert_eq!(msg, "Not supported", "Combination should not be supported yet"),
+                Ok(_) => panic!("Expected Err for unsupported combination"),
+            }
+        }
+        _ => panic!("Unexpected response (expected CombineResourceResponse)"),
+    }
+}
+
+

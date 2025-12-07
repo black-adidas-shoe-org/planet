@@ -179,7 +179,7 @@ impl PlanetAI for AI {
             }
             ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id: _ } => {
                 Some(PlanetToExplorer::AvailableEnergyCellResponse {
-                    available_cells: state.cells_count() as u32,
+                    available_cells: state.cells_count() as u32,                        // Scusa ma non dovrebbe ritornare le celle cariche?
                 })
             }
             ExplorerToPlanet::CombineResourceRequest { explorer_id: _, msg } => {
