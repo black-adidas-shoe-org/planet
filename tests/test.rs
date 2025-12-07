@@ -1,12 +1,10 @@
-use common_game::components::planet::{Planet, PlanetAI, PlanetState, PlanetType};
-use common_game::components::resource::{BasicResourceType, Combinator, Generator};
+use common_game::components::forge::Forge;
+use common_game::components::resource::BasicResourceType;
 use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
-use std::sync::mpsc::{Sender,Receiver,channel};
+use planet::planet::create_planet;
+use crossbeam_channel::{Sender, Receiver, unbounded, RecvTimeoutError};
 use std::thread::JoinHandle;
 use std::time::Duration;
-use common_game::components::sunray::Sunray;
-use common_game::components::forge::Forge;
-use planet::planet::{create_planet, AI};
 
 struct Environement {
     phandle: JoinHandle<()>,
@@ -20,10 +18,10 @@ struct Environement {
 
 impl Environement {
     fn new(ai_state: bool) -> Self {
-        let (tx_otp, rx_otp) = channel();
-        let (tx_pto, rx_pto) = channel();
-        let (tx_etp, rx_etp) = channel();
-        let (tx_pte, rx_pte) = channel();
+        let (tx_otp, rx_otp) = unbounded();
+        let (tx_pto, rx_pto) = unbounded();
+        let (tx_etp, rx_etp) = unbounded();
+        let (tx_pte, rx_pte) = unbounded();
 
         let mut planet = create_planet(1, rx_otp, tx_pto.clone(), rx_etp).unwrap();
 
@@ -59,7 +57,7 @@ impl Environement {
         self.tx_otp.send(msg).expect("send_otp failed");
     }
 
-    fn recv_pto(&self) -> Result<PlanetToOrchestrator, std::sync::mpsc::RecvTimeoutError> {
+    fn recv_pto(&self) -> Result<PlanetToOrchestrator, RecvTimeoutError> {
         self.rx_pto.recv_timeout(Duration::from_millis(150))
     }
 
@@ -67,7 +65,7 @@ impl Environement {
         self.tx_etp.send(msg).expect("send_etp failed");
     }
 
-    fn recv_pte(&self) -> Result<PlanetToExplorer, std::sync::mpsc::RecvTimeoutError> {
+    fn recv_pte(&self) -> Result<PlanetToExplorer, RecvTimeoutError> {
         self.rx_pte.recv_timeout(Duration::from_millis(150))
     }
 
