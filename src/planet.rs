@@ -183,7 +183,7 @@ impl PlanetAI for AI {
                     if cell.is_charged() { charged_cells+= 1}
                 );
                 Some(PlanetToExplorer::AvailableEnergyCellResponse {
-                    available_cells: charged_cells,                        // Scusa ma non dovrebbe ritornare le celle cariche?
+                    available_cells: charged_cells,
                 })
             }
             ExplorerToPlanet::CombineResourceRequest { explorer_id: _, msg } => {
