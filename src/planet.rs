@@ -178,8 +178,12 @@ impl PlanetAI for AI {
                 }
             }
             ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id: _ } => {
+                let mut charged_cells: u32 = 0;
+                state.cells_iter().for_each(|cell|
+                    if cell.is_charged() { charged_cells+= 1}
+                );
                 Some(PlanetToExplorer::AvailableEnergyCellResponse {
-                    available_cells: state.cells_count() as u32,                        // Scusa ma non dovrebbe ritornare le celle cariche?
+                    available_cells: charged_cells,                        // Scusa ma non dovrebbe ritornare le celle cariche?
                 })
             }
             ExplorerToPlanet::CombineResourceRequest { explorer_id: _, msg } => {
