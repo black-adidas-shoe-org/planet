@@ -70,12 +70,28 @@ checksum = "b05b61dc5112cbb17e4b6cd61790d9845d13888356391624cbe7e41efeac1e75"
 [[package]]
 name = "common-game"
 version = "0.1.0"
-source = "git+https://github.com/unitn-ap-2025/common.git#fcc9108d713e0cd2dcf7ebab4b31a29cda3aab21"
+source = "git+https://github.com/unitn-ap-2025/common.git#5b5c697a7b64b26b24134e5e91d34b9da279432a"
 dependencies = [
+ "crossbeam-channel",
  "lazy_static",
  "log",
  "paste",
 ]
+
+[[package]]
+name = "crossbeam-channel"
+version = "0.5.15"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "82b8f8f868b36967f9606790d1903570de9ceaf870a7bf9fbbd3016d636a2cb2"
+dependencies = [
+ "crossbeam-utils",
+]
+
+[[package]]
+name = "crossbeam-utils"
+version = "0.8.21"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d0a5c400df2834b80a4c3327b3aad3a4c4cd4de0629063962b03235697506a28"
 
 [[package]]
 name = "env_filter"
@@ -149,6 +165,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f52b00d39961fc5b2736ea853c9cc86238e165017a493d1d5c8eac6bdc4cc273"
 
 [[package]]
+name = "once_cell"
+version = "1.21.3"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42f5e15c9953c5e4ccceeb2e7382a716482c34515315f7b03532b8b4e8393d2d"
+
+[[package]]
 name = "once_cell_polyfill"
 version = "1.70.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -165,7 +187,9 @@ name = "planet"
 version = "0.1.0"
 dependencies = [
  "common-game",
+ "crossbeam-channel",
  "env_logger",
+ "once_cell",
 ]
 
 [[package]]

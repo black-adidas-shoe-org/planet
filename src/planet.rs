@@ -8,7 +8,7 @@ use common_game::protocols::messages;
 use common_game::protocols::messages::{
     ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
 };
-use std::sync::mpsc;
+use crossbeam_channel::{Sender, Receiver};
 use common_game::logging::{ActorType, Channel, EventType, LogEvent, Payload};
 
 // Group-defined AI struct
@@ -17,7 +17,7 @@ pub struct AI {
 }
 
 impl AI{
-    fn new(is_on: bool)->Self{
+    pub fn new(is_on: bool)->Self{
         Self{
             is_on
         }
@@ -179,7 +179,7 @@ impl PlanetAI for AI {
             }
             ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id: _ } => {
                 Some(PlanetToExplorer::AvailableEnergyCellResponse {
-                    available_cells: state.cells_count() as u32,
+                    available_cells: state.cells_count() as u32,                        // Scusa ma non dovrebbe ritornare le celle cariche?
                 })
             }
             ExplorerToPlanet::CombineResourceRequest { explorer_id: _, msg } => {
@@ -225,9 +225,9 @@ impl PlanetAI for AI {
 // the orchestrator to spawn your planet.
 pub fn create_planet(
     id: u32,
-    rx_orchestrator: mpsc::Receiver<messages::OrchestratorToPlanet>,
-    tx_orchestrator: mpsc::Sender<messages::PlanetToOrchestrator>,
-    rx_explorer: mpsc::Receiver<messages::ExplorerToPlanet>,
+    rx_orchestrator: Receiver<messages::OrchestratorToPlanet>,
+    tx_orchestrator: Sender<messages::PlanetToOrchestrator>,
+    rx_explorer: Receiver<messages::ExplorerToPlanet>,
 ) -> Result<Planet, String> {
     let ai = AI::new(false);
     let gen_rules = vec![
