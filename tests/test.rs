@@ -150,15 +150,17 @@ fn test_orchestrator_internal_state_request() {
 
 #[test]
 fn test_available_cells() {
+    let forge = get_forge();
     let env = Environement::new(true);
 
     env.enable_explorer();
+    env.send_otp(OrchestratorToPlanet::Sunray(forge.generate_sunray())); //send a sunray
 
     env.send_etp(ExplorerToPlanet::AvailableEnergyCellRequest { explorer_id: 1 });
     let resp = env.recv_pte().unwrap();
     match resp {
         PlanetToExplorer::AvailableEnergyCellResponse { available_cells } => {
-            assert_eq!(available_cells, 5, "Five cells should be available");
+            assert_eq!(available_cells, 1, "One cell should be available");
         }
         _ => panic!("Unexpected response (expected SupportedResourceResponse)"),
     }
