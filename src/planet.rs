@@ -4,27 +4,52 @@ use common_game::components::resource::{
     Generator, GenericResource,
 };
 use common_game::components::rocket::Rocket;
+use common_game::logging::{ActorType, Channel, EventType, LogEvent, Payload};
 use common_game::protocols::messages;
 use common_game::protocols::messages::{
     ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
 };
-use crossbeam_channel::{Sender, Receiver};
-use common_game::logging::{ActorType, Channel, EventType, LogEvent, Payload};
+use crossbeam_channel::{Receiver, Sender};
 
-// Group-defined AI struct
-pub struct AI {
+// AI struct
+struct BlackAdidasShoe{
     is_on: bool,
 }
 
-impl AI{
+impl BlackAdidasShoe{
     pub fn new(is_on: bool)->Self{
         Self{
             is_on
         }
     }
 }
-
-impl PlanetAI for AI {
+fn exit_on_stopped_ai(is_on: bool, planet_id: u32)->bool{
+    if !is_on{
+        LogEvent::new(
+            ActorType::Planet,
+            planet_id,
+            ActorType::Orchestrator,
+            String::from("1"),
+            EventType::MessageOrchestratorToPlanet,
+            Channel::Error,
+            Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
+        ).emit();
+        true
+    }
+    else { false }
+}
+fn log_not_created_resource(err: String, planet_id: u32, explorer_id: u32){
+    LogEvent::new(
+        ActorType::Planet,
+        planet_id,
+        ActorType::Explorer,
+        explorer_id.to_string(),
+        EventType::MessageExplorerToPlanet,
+        Channel::Error,
+        Payload::from([("Cannot make resource".to_string(), err)])
+    ).emit();
+}
+impl PlanetAI for BlackAdidasShoe {
     fn handle_orchestrator_msg(
         &mut self,
         state: &mut PlanetState,
@@ -33,16 +58,7 @@ impl PlanetAI for AI {
         msg: OrchestratorToPlanet,
     ) -> Option<PlanetToOrchestrator> {
         // check on the AI state
-        if !self.is_on{
-            LogEvent::new(
-                ActorType::Planet,
-                state.id(),
-                ActorType::Orchestrator,
-                String::from("1"),
-                EventType::MessageOrchestratorToPlanet,
-                Channel::Error,
-                Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
-            ).emit();
+        if exit_on_stopped_ai(self.is_on, state.id()){
             return None
         }
 
@@ -98,16 +114,7 @@ impl PlanetAI for AI {
         msg: messages::ExplorerToPlanet,
     ) -> Option<messages::PlanetToExplorer> {
         // check on the AI state
-        if !self.is_on{
-            LogEvent::new(
-                ActorType::Planet,
-                state.id(),
-                ActorType::Orchestrator,
-                String::from("1"),
-                EventType::MessageOrchestratorToPlanet,
-                Channel::Error,
-                Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
-            ).emit();
+        if exit_on_stopped_ai(self.is_on, state.id()){
             return None
         }
 
@@ -125,7 +132,7 @@ impl PlanetAI for AI {
                 })
             }
             ExplorerToPlanet::GenerateResourceRequest {
-                explorer_id: _,
+                explorer_id,
                 resource,
             } => {
                 match state.full_cell() {
@@ -140,7 +147,7 @@ impl PlanetAI for AI {
                                     resource: Some(BasicResource::Oxygen(o)),
                                 }),
                                 Err(err) => {
-                                    // TODO log the error
+                                    log_not_created_resource(err, state.id(), explorer_id);
                                     Some(PlanetToExplorer::GenerateResourceResponse {
                                         resource: None,
                                     })
@@ -153,7 +160,7 @@ impl PlanetAI for AI {
                                     resource: Some(BasicResource::Hydrogen(h)),
                                 }),
                                 Err(err) => {
-                                    // TODO log the error
+                                    log_not_created_resource(err, state.id(), explorer_id);
                                     Some(PlanetToExplorer::GenerateResourceResponse {
                                         resource: None,
                                     })
@@ -166,7 +173,7 @@ impl PlanetAI for AI {
                                     resource: Some(BasicResource::Carbon(c)),
                                 }),
                                 Err(err) => {
-                                    // TODO log the error
+                                    log_not_created_resource(err, state.id(), explorer_id);
                                     Some(PlanetToExplorer::GenerateResourceResponse {
                                         resource: None,
                                     })
@@ -228,12 +235,12 @@ impl PlanetAI for AI {
 // This is the group's "export" function. It will be called by
 // the orchestrator to spawn your planet.
 pub fn create_planet(
-    id: u32,
     rx_orchestrator: Receiver<messages::OrchestratorToPlanet>,
     tx_orchestrator: Sender<messages::PlanetToOrchestrator>,
     rx_explorer: Receiver<messages::ExplorerToPlanet>,
+    planet_id: u32
 ) -> Result<Planet, String> {
-    let ai = AI::new(false);
+    let ai = BlackAdidasShoe::new(false);
     let gen_rules = vec![
         BasicResourceType::Oxygen,
         BasicResourceType::Hydrogen,
@@ -243,7 +250,7 @@ pub fn create_planet(
 
     // Construct the planet and return it
     let planet = Planet::new(
-        id,
+        planet_id,
         PlanetType::D,
         Box::new(ai),
         gen_rules,
@@ -251,6 +258,5 @@ pub fn create_planet(
         (rx_orchestrator, tx_orchestrator),
         rx_explorer,
     );
-    
     planet
 }

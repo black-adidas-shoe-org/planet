@@ -1,7 +1,10 @@
 [package]
-name = "planet"
+name = "ara_kees"
 version = "0.1.0"
 edition = "2024"
+
+[lib]
+path = "src/lib.rs"
 
 [dependencies]
 common-game = { git = "https://github.com/unitn-ap-2025/common.git" }
