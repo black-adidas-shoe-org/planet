@@ -1,7 +1,7 @@
 use common_game::components::forge::Forge;
 use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, Generator};
 use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
-use planet::planet::create_planet;
+use ara_kees::planet::create_planet;
 use crossbeam_channel::{Sender, Receiver, unbounded, RecvTimeoutError};
 use std::thread::JoinHandle;
 use std::time::Duration;
@@ -30,7 +30,7 @@ impl Environement {
         let (tx_etp, rx_etp) = unbounded::<ExplorerToPlanet>();
         let (tx_pte, rx_pte) = unbounded::<PlanetToExplorer>();
 
-        let mut planet = create_planet(1, rx_otp, tx_pto.clone(), rx_etp)
+        let mut planet = create_planet(rx_otp, tx_pto.clone(), rx_etp, 1)
             .expect("Failed to create planet");
 
         let phandle = std::thread::spawn(move || {
