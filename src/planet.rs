@@ -1,14 +1,14 @@
-use common_game::components::planet::{Planet, PlanetAI, PlanetState, PlanetType};
+use common_game::components::planet::{DummyPlanetState, Planet, PlanetAI, PlanetState, PlanetType};
 use common_game::components::resource::{
     BasicResource, BasicResourceType, Combinator, ComplexResource, ComplexResourceRequest,
     Generator, GenericResource,
 };
 use common_game::components::rocket::Rocket;
-use common_game::logging::{ActorType, Channel, EventType, LogEvent, Payload};
-use common_game::protocols::messages;
-use common_game::protocols::messages::{
-    ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator,
-};
+use common_game::components::sunray::Sunray;
+use common_game::logging::{ActorType, Channel, EventType, LogEvent, Participant, Payload};
+use common_game::protocols::orchestrator_planet::{OrchestratorToPlanet, PlanetToOrchestrator};
+use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
+use common_game::utils::ID;
 use crossbeam_channel::{Receiver, Sender};
 
 // AI struct
@@ -16,6 +16,7 @@ struct BlackAdidasShoe{
     is_on: bool,
 }
 
+const ORCH_ID:u32 = 1u32; // to be moved in orch
 impl BlackAdidasShoe{
     pub fn new(is_on: bool)->Self{
         Self{
@@ -26,10 +27,8 @@ impl BlackAdidasShoe{
 fn exit_on_stopped_ai(is_on: bool, planet_id: u32)->bool{
     if !is_on{
         LogEvent::new(
-            ActorType::Planet,
-            planet_id,
-            ActorType::Orchestrator,
-            String::from("1"),
+            Some(Participant::new(ActorType::Planet, planet_id)),
+            Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
             EventType::MessageOrchestratorToPlanet,
             Channel::Error,
             Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
@@ -40,70 +39,59 @@ fn exit_on_stopped_ai(is_on: bool, planet_id: u32)->bool{
 }
 fn log_not_created_resource(err: String, planet_id: u32, explorer_id: u32){
     LogEvent::new(
-        ActorType::Planet,
-        planet_id,
-        ActorType::Explorer,
-        explorer_id.to_string(),
+        Some(Participant::new(ActorType::Planet, planet_id)),
+        Some(Participant::new(ActorType::Explorer, explorer_id)),
         EventType::MessageExplorerToPlanet,
         Channel::Error,
         Payload::from([("Cannot make resource".to_string(), err)])
     ).emit();
 }
 impl PlanetAI for BlackAdidasShoe {
-    fn handle_orchestrator_msg(
+    fn handle_sunray(
         &mut self,
         state: &mut PlanetState,
         _generator: &Generator,
         _combinator: &Combinator,
-        msg: OrchestratorToPlanet,
-    ) -> Option<PlanetToOrchestrator> {
-        // check on the AI state
-        if exit_on_stopped_ai(self.is_on, state.id()){
-            return None
+        sunray: Sunray
+    ){
+        if let Some(_) = state.charge_cell(sunray){
+            // cell charged
+            LogEvent::new(
+                Some(Participant::new(ActorType::Planet, state.id())),
+                Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+                EventType::MessageOrchestratorToPlanet,
+                Channel::Info,
+                Payload::from([("Cell charged".to_string(), "Cell recharged correctly".to_string())])
+            ).emit();
+        }else{
+            // not charged, full cells
+            LogEvent::new(
+                Some(Participant::new(ActorType::Planet, state.id())),
+                Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+                EventType::MessageOrchestratorToPlanet,
+                Channel::Warning,
+                Payload::from([("Not able to charge cell".to_string(), "All cells are already charged".to_string())])
+            ).emit();
         }
+    }
 
-        // match on msg type
-        match msg {
-            OrchestratorToPlanet::Sunray(sunray) => {
-                // state
 
-                if let Some(_) = state.charge_cell(sunray){
-                    // cell charged
-                    LogEvent::new(
-                        ActorType::Planet,
-                        state.id(),
-                        ActorType::Orchestrator,
-                        String::from("1"),
-                        EventType::MessageOrchestratorToPlanet,
-                        Channel::Info,
-                        Payload::from([("Cell charged".to_string(), "Cell recharged correctly".to_string())])
-                    ).emit();
-                }else{
-                    // not charged, full cells
-                    LogEvent::new(
-                        ActorType::Planet,
-                        state.id(),
-                        ActorType::Orchestrator,
-                        String::from("1"),
-                        EventType::MessageOrchestratorToPlanet,
-                        Channel::Warning,
-                        Payload::from([("Not able to charge cell".to_string(), "All cells are already charged".to_string())])
-                    ).emit();
-                }
+    fn handle_asteroid(
+        &mut self,
+        state: &mut PlanetState,
+        _generator: &Generator,
+        _combinator: &Combinator,
+    ) -> Option<Rocket> {
+        state.take_rocket()
+    }
 
-                //send ack
-                Some(PlanetToOrchestrator::SunrayAck {
-                    planet_id: state.id(),
-                })
-            }
-            OrchestratorToPlanet::InternalStateRequest => {
-                Some(PlanetToOrchestrator::InternalStateResponse {
-                    planet_id: state.id(),
-                    planet_state: state.to_dummy(),
-                })
-            }
-            _ => None,
-        }
+    fn handle_internal_state_req(
+        &mut self,
+        state: &mut PlanetState,
+        _generator: &Generator,
+        _combinator: &Combinator
+    ) -> DummyPlanetState {
+        state.to_dummy()
     }
 
     fn handle_explorer_msg(
@@ -111,8 +99,8 @@ impl PlanetAI for BlackAdidasShoe {
         state: &mut PlanetState,
         generator: &Generator,
         combinator: &Combinator,
-        msg: messages::ExplorerToPlanet,
-    ) -> Option<messages::PlanetToExplorer> {
+        msg: ExplorerToPlanet
+    ) -> Option<PlanetToExplorer> {
         // check on the AI state
         if exit_on_stopped_ai(self.is_on, state.id()){
             return None
@@ -215,19 +203,19 @@ impl PlanetAI for BlackAdidasShoe {
         }
     }
 
-    fn handle_asteroid(
-        &mut self,
-        state: &mut PlanetState,
-        _generator: &Generator,
-        _combinator: &Combinator,
-    ) -> Option<Rocket> {
-        state.take_rocket()
+    fn on_explorer_arrival(&mut self, _state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
+        //TODO do we need to do something?
     }
 
-    fn start(&mut self, _state: &PlanetState) {
+    fn on_explorer_departure(&mut self, _state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
+        //TODO do we need to do something?
+    }
+
+    fn on_start(&mut self, _state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
         self.is_on = true;
     }
-    fn stop(&mut self, _state: &PlanetState) {
+
+    fn on_stop(&mut self, _state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
         self.is_on = false;
     }
 }
@@ -235,9 +223,9 @@ impl PlanetAI for BlackAdidasShoe {
 // This is the group's "export" function. It will be called by
 // the orchestrator to spawn your planet.
 pub fn create_planet(
-    rx_orchestrator: Receiver<messages::OrchestratorToPlanet>,
-    tx_orchestrator: Sender<messages::PlanetToOrchestrator>,
-    rx_explorer: Receiver<messages::ExplorerToPlanet>,
+    rx_orchestrator: Receiver<OrchestratorToPlanet>,
+    tx_orchestrator: Sender<PlanetToOrchestrator>,
+    rx_explorer: Receiver<ExplorerToPlanet>,
     planet_id: u32
 ) -> Result<Planet, String> {
     let ai = BlackAdidasShoe::new(false);

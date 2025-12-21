@@ -1,6 +1,5 @@
 use common_game::components::forge::Forge;
 use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, Generator};
-use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
 use ara_kees::planet::create_planet;
 use crossbeam_channel::{Sender, Receiver, unbounded, RecvTimeoutError};
 use std::thread::JoinHandle;
@@ -9,6 +8,9 @@ use std::time::Duration;
 // Handling the shared forge
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
+use common_game::protocols::orchestrator_planet::{OrchestratorToPlanet, PlanetToOrchestrator};
+use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
+
 static FORGE: Lazy<Mutex<Forge>> = Lazy::new(|| Mutex::new(Forge::new().unwrap()));
 fn get_forge() -> std::sync::MutexGuard<'static, Forge> {
     FORGE.lock().unwrap()
@@ -73,7 +75,7 @@ impl Environement {
     pub fn enable_explorer(&self) {
         self.send_otp(OrchestratorToPlanet::IncomingExplorerRequest {
             explorer_id: 1,
-            new_mpsc_sender: self.tx_pte.clone(),
+            new_sender: self.tx_pte.clone(),
         });
 
         // Wait for ack from planet
