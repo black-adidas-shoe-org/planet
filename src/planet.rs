@@ -34,6 +34,10 @@ fn exit_on_stopped_ai(is_on: bool, planet_id: u32)->bool{
     else { false }
 }
 
+
+
+
+// Begin of Log functions
 fn log_ai_state(msg: String, planet_id: u32) {
     LogEvent::new(
         Some(Participant::new(ActorType::Planet, planet_id)),
@@ -93,6 +97,38 @@ fn log_asteroid_impact(msg: String, planet_id: u32) {
     ).emit();
 }
 
+fn log_cell_charge(msg: String, planet_id:u32){
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet,planet_id)),
+        Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+        EventType::MessageOrchestratorToPlanet,
+        Channel::Info,
+        Payload::from([("Cell charge".to_string(), msg)])
+    ).emit();
+}
+fn log_supported_resources(msg: String, planet_id:u32, explorer_id: u32){
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet,planet_id)),
+        Some(Participant::new(ActorType::Explorer, explorer_id)),
+        EventType::MessagePlanetToExplorer,
+        Channel::Info,
+        Payload::from([("Supported resources".to_string(), msg)])
+    ).emit();
+}
+fn log_generation_rules(msg: String, planet_id:u32, explorer_id: u32){
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet,planet_id)),
+        Some(Participant::new(ActorType::Explorer, explorer_id)),
+        EventType::MessagePlanetToExplorer,
+        Channel::Info,
+        Payload::from([("Generation rules".to_string(), msg)])
+    ).emit();
+}
+
+
+
+
+// End of Log functions
 
 impl PlanetAI for BlackAdidasShoe {
     fn handle_sunray(
@@ -104,22 +140,10 @@ impl PlanetAI for BlackAdidasShoe {
     ){
         if let Some(_) = state.charge_cell(sunray){
             // cell charged
-            LogEvent::new(
-                Some(Participant::new(ActorType::Planet, state.id())),
-                Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
-                EventType::MessageOrchestratorToPlanet,
-                Channel::Info,
-                Payload::from([("Cell charged".to_string(), "Cell recharged correctly".to_string())])
-            ).emit();
+            log_cell_charge(String::from("Cell recharged correctly"), state.id());
         }else{
             // not charged, full cells
-            LogEvent::new(
-                Some(Participant::new(ActorType::Planet, state.id())),
-                Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
-                EventType::MessageOrchestratorToPlanet,
-                Channel::Warning,
-                Payload::from([("Not able to charge cell".to_string(), "All cells are already charged".to_string())])
-            ).emit();
+            log_cell_charge(String::from("All cells are already charged"), state.id());
         }
     }
 
@@ -158,13 +182,15 @@ impl PlanetAI for BlackAdidasShoe {
 
         //match on the message type
         match msg {
-            ExplorerToPlanet::SupportedResourceRequest { explorer_id: _ } => {
+            ExplorerToPlanet::SupportedResourceRequest { explorer_id } => {
+                log_supported_resources(String::from("Supported resources: Carbon, Oxygen, Hydrogen"), state.id(), explorer_id);
                 Some(PlanetToExplorer::SupportedResourceResponse {
                     resource_list: generator.all_available_recipes(),
                 })
             }
-            ExplorerToPlanet::SupportedCombinationRequest { explorer_id: _ } => {
+            ExplorerToPlanet::SupportedCombinationRequest { explorer_id } => {
                 // no combination
+                log_generation_rules(String::from("No supported combination"), state.id(), explorer_id);
                 Some(PlanetToExplorer::SupportedCombinationResponse {
                     combination_list: combinator.all_available_recipes(),
                 })
