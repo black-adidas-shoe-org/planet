@@ -1,4 +1,4 @@
-# Ara-Kees Planet 🪐👟
+# Ara-Kees Planet <img src="assets/planet_sprite.png" alt="ara-kees sprite" width="30"> 👟
 
 This repository contains the source code for **Ara-Kees**, a planet participating in the `common_game` ecosystem (part of the **unitn-ap-2025** project).
 

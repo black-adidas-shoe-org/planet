@@ -1,3 +1,5 @@
+use std::os::linux::raw::stat;
+
 use common_game::components::planet::{DummyPlanetState, Planet, PlanetAI, PlanetState, PlanetType};
 use common_game::components::resource::{
     BasicResource, BasicResourceType, Combinator, ComplexResource, ComplexResourceRequest,
@@ -26,17 +28,43 @@ impl BlackAdidasShoe{
 }
 fn exit_on_stopped_ai(is_on: bool, planet_id: u32)->bool{
     if !is_on{
-        LogEvent::new(
-            Some(Participant::new(ActorType::Planet, planet_id)),
-            Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
-            EventType::MessageOrchestratorToPlanet,
-            Channel::Error,
-            Payload::from([("AI disabled".to_string(), "AI field `is_on` is false".to_string())])
-        ).emit();
+        log_ai_state(String::from("AI field `is_on` is false"), planet_id);
         true
     }
     else { false }
 }
+
+fn log_ai_state(msg: String, planet_id: u32) {
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet, planet_id)),
+        Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+        EventType::MessagePlanetToOrchestrator,
+        Channel::Info,
+        Payload::from([("AI state".to_string(), msg)])
+    ).emit();
+}
+
+
+fn log_explorer_transit(msg: String, planet_id: u32) {
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet, planet_id)),
+        Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+        EventType::MessagePlanetToOrchestrator,
+        Channel::Info,
+        Payload::from([("Explorer Transit".to_string(), msg)])
+    ).emit();
+}
+
+fn log_resource_created(msg: String, planet_id: u32, explorer_id: u32){
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet, planet_id)),
+        Some(Participant::new(ActorType::Explorer, explorer_id)),
+        EventType::MessageExplorerToPlanet,
+        Channel::Error,
+        Payload::from([("Resource created".to_string(), msg)])
+    ).emit();
+}
+
 fn log_not_created_resource(err: String, planet_id: u32, explorer_id: u32){
     LogEvent::new(
         Some(Participant::new(ActorType::Planet, planet_id)),
@@ -46,6 +74,26 @@ fn log_not_created_resource(err: String, planet_id: u32, explorer_id: u32){
         Payload::from([("Cannot make resource".to_string(), err)])
     ).emit();
 }
+fn log_internal_state(msg: String, planet_id: u32) {
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet, planet_id)),
+        Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+        EventType::MessagePlanetToOrchestrator,
+        Channel::Info,
+        Payload::from([("Internal state".to_string(), msg)])
+    ).emit();
+}
+fn log_asteroid_impact(msg: String, planet_id: u32) {
+    LogEvent::new(
+        Some(Participant::new(ActorType::Planet, planet_id)),
+        Some(Participant::new(ActorType::Orchestrator, ORCH_ID)),
+        EventType::MessagePlanetToOrchestrator,
+        Channel::Info,
+        Payload::from([("Asteroid Impact".to_string(), msg)])
+    ).emit();
+}
+
+
 impl PlanetAI for BlackAdidasShoe {
     fn handle_sunray(
         &mut self,
@@ -82,6 +130,7 @@ impl PlanetAI for BlackAdidasShoe {
         _generator: &Generator,
         _combinator: &Combinator,
     ) -> Option<Rocket> {
+        log_asteroid_impact(String::from("No rocket usable to defend"), state.id());
         state.take_rocket()
     }
 
@@ -91,6 +140,7 @@ impl PlanetAI for BlackAdidasShoe {
         _generator: &Generator,
         _combinator: &Combinator
     ) -> DummyPlanetState {
+        log_internal_state(String::from("Internal state"), state.id());
         state.to_dummy()
     }
 
@@ -102,7 +152,7 @@ impl PlanetAI for BlackAdidasShoe {
         msg: ExplorerToPlanet
     ) -> Option<PlanetToExplorer> {
         // check on the AI state
-        if exit_on_stopped_ai(self.is_on, state.id()){
+        if exit_on_stopped_ai(self.is_on, state.id()){ // already logging into this function
             return None
         }
 
@@ -131,9 +181,12 @@ impl PlanetAI for BlackAdidasShoe {
                         BasicResourceType::Oxygen => {
                             // generate the oxygen resource
                             match generator.make_oxygen(cell) {
-                                Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse {
-                                    resource: Some(BasicResource::Oxygen(o)),
-                                }),
+                                Ok(o) => {
+                                    log_resource_created(String::from("Oxygen created"), state.id(), explorer_id);
+                                    Some(PlanetToExplorer::GenerateResourceResponse {
+                                        resource: Some(BasicResource::Oxygen(o)),
+                                    })
+                                },
                                 Err(err) => {
                                     log_not_created_resource(err, state.id(), explorer_id);
                                     Some(PlanetToExplorer::GenerateResourceResponse {
@@ -144,9 +197,12 @@ impl PlanetAI for BlackAdidasShoe {
                         }
                         BasicResourceType::Hydrogen => {
                             match generator.make_hydrogen(cell) {
-                                Ok(h) => Some(PlanetToExplorer::GenerateResourceResponse {
-                                    resource: Some(BasicResource::Hydrogen(h)),
-                                }),
+                                Ok(h) => {
+                                    log_resource_created(String::from("Hydrogen created"), state.id(), explorer_id);
+                                    Some(PlanetToExplorer::GenerateResourceResponse {
+                                        resource: Some(BasicResource::Hydrogen(h)),
+                                    })
+                                },
                                 Err(err) => {
                                     log_not_created_resource(err, state.id(), explorer_id);
                                     Some(PlanetToExplorer::GenerateResourceResponse {
@@ -157,9 +213,12 @@ impl PlanetAI for BlackAdidasShoe {
                         }
                         BasicResourceType::Carbon => {
                             match generator.make_carbon(cell) {
-                                Ok(c) => Some(PlanetToExplorer::GenerateResourceResponse {
-                                    resource: Some(BasicResource::Carbon(c)),
-                                }),
+                                Ok(c) => {
+                                    log_resource_created(String::from("Carbon created"), state.id(), explorer_id);
+                                    Some(PlanetToExplorer::GenerateResourceResponse {
+                                        resource: Some(BasicResource::Carbon(c)),
+                                    })
+                                },
                                 Err(err) => {
                                     log_not_created_resource(err, state.id(), explorer_id);
                                     Some(PlanetToExplorer::GenerateResourceResponse {
@@ -203,19 +262,23 @@ impl PlanetAI for BlackAdidasShoe {
         }
     }
 
-    fn on_explorer_arrival(&mut self, _state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
+    fn on_explorer_arrival(&mut self, state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
+        log_explorer_transit(String::from("Explorer arrived"), state.id());
         //TODO do we need to do something?
     }
 
-    fn on_explorer_departure(&mut self, _state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
+    fn on_explorer_departure(&mut self, state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
+        log_explorer_transit(String::from("Explorer left"), state.id());
         //TODO do we need to do something?
     }
 
-    fn on_start(&mut self, _state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
+    fn on_start(&mut self, state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
+        log_ai_state(String::from("AI enabled"), state.id());
         self.is_on = true;
     }
 
-    fn on_stop(&mut self, _state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
+    fn on_stop(&mut self, state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
+        log_ai_state(String::from("AI disabled"), state.id());
         self.is_on = false;
     }
 }
