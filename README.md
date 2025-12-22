@@ -1,12 +1,9 @@
 # Ara-Kees Planet <img src="assets/planet_sprite.png" alt="ara-kees sprite" width="30"> 👟
 
 This repository contains the source code for **Ara-Kees**, a planet participating in the `common_game` ecosystem (part of the **unitn-ap-2025** project).
-
-The planet is powered by the `BlackAdidasShoe` AI implementation. It functions primarily as a **Type D** resource generator, strategically positioned to harvest solar energy and synthesize basic chemical elements for visiting Explorers.
+It is a **Type D** planet,powered by the `BlackAdidasShoe` AI implementation.
 
 ## Overview
-
-This library defines the behavioral logic of the **Ara-Kees** planet node. It integrates with the game orchestrator using crossbeam channels and an event-driven architecture.
 
 The planet handles:
 
@@ -29,7 +26,7 @@ The planet handles:
 
 ### 1. Resource Generation
 
-**Ara-Kees** specializes in synthesizing basic elements. It utilizes the `Generator` component to convert charged energy cells into matter.
+**Ara-Kees** utilizes the `Generator` component to generate these resources below.
 
 | Resource | Status | Cost | Logic |
 | --- | --- | --- | --- |
@@ -40,16 +37,12 @@ The planet handles:
 
 ### 2. Resource Combination
 
-**Current Status:** **Disabled**
-
 The planet is initialized with an **empty** `comb_rules` vector.
 
 * **Behavior:** While the AI code parses complex requests (Water, Diamond, Life, Robot, Dolphin, AIPartner) to identify ingredients, it is hardcoded to return an `Err("Not supported")`.
 * **Refunds:** The ingredients sent by the explorer are returned in the error payload, ensuring no resources are lost during the failed transaction.
 
 ### 3. Energy Management
-
-The planet acts as a solar battery.
 
 * **Sunrays:** Listens for `Sunray` events.
 * **Charging:** Calls `state.charge_cell()`.
@@ -58,14 +51,9 @@ The planet acts as a solar battery.
 * If all cells are full: Emits `WARNING` log "Not able to charge cell".
 
 
-
 ### 4. Defense & Survival
 
-**Status:** **Critical Vulnerability**
-
-* **Rocket Manufacturing:** Unavailable. The planet does not possess the recipe to combine resources into Rockets.
-* **Asteroid Event:** When `handle_asteroid` is triggered, the AI attempts to take a rocket from the internal inventory (`state.take_rocket()`).
-* **Outcome:** Since the planet cannot replenish rockets, once the initial stock (if any) is depleted, the planet is defenseless. **It will be destroyed upon the next asteroid impact.**
+It cannot build rockets due to the nature of its planet, so an asteroid strike would be lethal.
 
 ## Internal Logic & Protocols
 
@@ -95,18 +83,6 @@ The AI implements the `ExplorerToPlanet` protocol matchers:
 ## Usage
 
 This library is designed to be used by the `common_game` Orchestrator. The entry point is the `create_planet` function provided by the `ara_kees` crate.
-
-### Function Signature
-
-```rust
-pub fn create_planet(
-    rx_orchestrator: Receiver<OrchestratorToPlanet>,
-    tx_orchestrator: Sender<PlanetToOrchestrator>,
-    rx_explorer: Receiver<ExplorerToPlanet>,
-    planet_id: u32
-) -> Result<Planet, String>
-
-```
 
 ### Implementation Example
 
@@ -139,12 +115,16 @@ fn main() {
 
 The planet uses `LogEvent` to communicate strictly typed events to the Orchestrator.
 
-| Channel | Event Type | Trigger | Message Payload |
-| --- | --- | --- | --- |
-| `Info` | `MessageOrchestratorToPlanet` | Sunray processed | "Cell charged", "Cell recharged correctly" |
-| `Warning` | `MessageOrchestratorToPlanet` | Sunray on full battery | "Not able to charge cell", "All cells are already charged" |
-| `Error` | `MessageOrchestratorToPlanet` | Access while stopped | "AI disabled", "AI field `is_on` is false" |
-| `Error` | `MessageExplorerToPlanet` | Generator failure | "Cannot make resource", [Error Details] |
+## Contacts
+
+### Team members
+
+| Name | Profile | Role | Mail |
+| :--- | :--- | :--- | :--- |
+| Giovanni | [Ricxel](https://github.com/Ricxel) | Leader | [giovanni.sbalchiero@studenti.unitn.it](mailto:giovanni.sbalchiero@studenti.unitn.it) |
+| Luca | [ldrunitn](https://github.com/ldrunitn) | Member | [luca.dariz-1@studenti.unitn.it](mailto:luca.dariz-1@studenti.unitn.it) |
+| Alessandro | [Omatita](https://github.com/Omatita) | Member | [alessandro.omati@studenti.unitn.it](mailto:alessandro.omati@studenti.unitn.it) |
+| Leonardo | [l3osilv](https://github.com/l3osilv) | Member | [leonardo.silvestri-1@studenti.unitn.it](mailto:leonardo.silvestri-1@studenti.unitn.it) |
 
 ---
 
