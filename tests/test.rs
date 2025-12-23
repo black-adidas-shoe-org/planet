@@ -1,15 +1,15 @@
-use common_game::components::forge::Forge;
-use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, Generator};
 use ara_kees::planet::create_planet;
-use crossbeam_channel::{Sender, Receiver, unbounded, RecvTimeoutError};
+use common_game::components::forge::Forge;
+use common_game::components::resource::{BasicResourceType, ComplexResourceRequest};
+use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError, Sender};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use common_game::protocols::orchestrator_planet::{OrchestratorToPlanet, PlanetToOrchestrator};
+use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
 // Handling the shared forge
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
-use common_game::protocols::orchestrator_planet::{OrchestratorToPlanet, PlanetToOrchestrator};
-use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
 
 static FORGE: Lazy<Mutex<Forge>> = Lazy::new(|| Mutex::new(Forge::new().unwrap()));
 fn get_forge() -> std::sync::MutexGuard<'static, Forge> {

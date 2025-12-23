@@ -22,6 +22,11 @@ The planet handles:
 | **Planet Type** | `PlanetType::D` | Focus on raw resource generation |
 | **Orchestrator ID** | `1` | Hardcoded communication target |
 
+To import the planet in your project, add this under the `[dependencies]` section in your Cargo.toml:
+```rust
+ara_kees = {git = "https://github.com/black-adidas-shoe-org/planet.git" }
+```
+
 ## Capabilities
 
 ### 1. Resource Generation
