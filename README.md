@@ -20,7 +20,6 @@ The planet handles:
 | **Crate Name** | `ara_kees` | The Rust package name |
 | **AI Struct** | `BlackAdidasShoe` | The underlying logic implementation |
 | **Planet Type** | `PlanetType::D` | Focus on raw resource generation |
-| **Orchestrator ID** | `1` | Hardcoded communication target |
 
 To import the planet in your project, add this under the `[dependencies]` section in your Cargo.toml:
 ```rust
