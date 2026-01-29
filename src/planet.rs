@@ -11,16 +11,14 @@ use common_game::protocols::messages::{
 use crossbeam_channel::{Sender, Receiver};
 use common_game::logging::{ActorType, Channel, EventType, LogEvent, Payload};
 
-// Group-defined AI struct
-pub struct AI {
+/// Group-defined Planet AI struct
+struct AI {
     is_on: bool,
 }
 
 impl AI{
-    pub fn new(is_on: bool)->Self{
-        Self{
-            is_on
-        }
+    fn new(is_on: bool)->Self{
+        Self{ is_on }
     }
 }
 
@@ -49,8 +47,6 @@ impl PlanetAI for AI {
         // match on msg type
         match msg {
             OrchestratorToPlanet::Sunray(sunray) => {
-                // state
-
                 if let Some(_) = state.charge_cell(sunray){
                     // cell charged
                     LogEvent::new(
@@ -136,11 +132,30 @@ impl PlanetAI for AI {
                         BasicResourceType::Oxygen => {
                             // generate the oxygen resource
                             match generator.make_oxygen(cell) {
-                                Ok(o) => Some(PlanetToExplorer::GenerateResourceResponse {
-                                    resource: Some(BasicResource::Oxygen(o)),
-                                }),
+                                Ok(o) => {
+                                    LogEvent::new(
+                                        ActorType::Planet,
+                                        state.id(),
+                                        ActorType::Explorer,
+                                        String::from("1"),
+                                        EventType::MessageExplorerToPlanet,
+                                        Channel::Info,
+                                        Payload::from([("Resource generation".to_string(), "Oxygen was generated".to_string())])
+                                    ).emit();
+                                    Some(PlanetToExplorer::GenerateResourceResponse {
+                                        resource: Some(BasicResource::Oxygen(o)),
+                                    })
+                                },
                                 Err(err) => {
-                                    // TODO log the error
+                                    LogEvent::new(
+                                        ActorType::Planet,
+                                        state.id(),
+                                        ActorType::Explorer,
+                                        String::from("1"),
+                                        EventType::MessageExplorerToPlanet,
+                                        Channel::Info,
+                                        Payload::from([("Unable to generate Resource".to_string(), err.to_string())])
+                                    ).emit();
                                     Some(PlanetToExplorer::GenerateResourceResponse {
                                         resource: None,
                                     })
@@ -149,11 +164,30 @@ impl PlanetAI for AI {
                         }
                         BasicResourceType::Hydrogen => {
                             match generator.make_hydrogen(cell) {
-                                Ok(h) => Some(PlanetToExplorer::GenerateResourceResponse {
-                                    resource: Some(BasicResource::Hydrogen(h)),
-                                }),
+                                Ok(h) => {
+                                    LogEvent::new(
+                                        ActorType::Planet,
+                                        state.id(),
+                                        ActorType::Explorer,
+                                        String::from("1"),
+                                        EventType::MessageExplorerToPlanet,
+                                        Channel::Info,
+                                        Payload::from([("Resource generation".to_string(), "Hydrogen was generated".to_string())])
+                                    ).emit();
+                                    Some(PlanetToExplorer::GenerateResourceResponse {
+                                        resource: Some(BasicResource::Hydrogen(h)),
+                                    })
+                                },
                                 Err(err) => {
-                                    // TODO log the error
+                                    LogEvent::new(
+                                        ActorType::Planet,
+                                        state.id(),
+                                        ActorType::Explorer,
+                                        String::from("1"),
+                                        EventType::MessageExplorerToPlanet,
+                                        Channel::Info,
+                                        Payload::from([("Unable to generate Hydrogen".to_string(), err.to_string())])
+                                    ).emit();
                                     Some(PlanetToExplorer::GenerateResourceResponse {
                                         resource: None,
                                     })
@@ -162,11 +196,30 @@ impl PlanetAI for AI {
                         }
                         BasicResourceType::Carbon => {
                             match generator.make_carbon(cell) {
-                                Ok(c) => Some(PlanetToExplorer::GenerateResourceResponse {
-                                    resource: Some(BasicResource::Carbon(c)),
-                                }),
+                                Ok(c) => {
+                                    LogEvent::new(
+                                        ActorType::Planet,
+                                        state.id(),
+                                        ActorType::Explorer,
+                                        String::from("1"),
+                                        EventType::MessageExplorerToPlanet,
+                                        Channel::Info,
+                                        Payload::from([("Resource generation".to_string(), "Carbon was generated".to_string())])
+                                    ).emit();
+                                    Some(PlanetToExplorer::GenerateResourceResponse {
+                                        resource: Some(BasicResource::Carbon(c)),
+                                    })
+                                },
                                 Err(err) => {
-                                    // TODO log the error
+                                    LogEvent::new(
+                                        ActorType::Planet,
+                                        state.id(),
+                                        ActorType::Explorer,
+                                        String::from("1"),
+                                        EventType::MessageExplorerToPlanet,
+                                        Channel::Info,
+                                        Payload::from([("Unable to generate Carbon".to_string(), err.to_string())])
+                                    ).emit();
                                     Some(PlanetToExplorer::GenerateResourceResponse {
                                         resource: None,
                                     })
@@ -218,15 +271,32 @@ impl PlanetAI for AI {
     }
 
     fn start(&mut self, _state: &PlanetState) {
+        LogEvent::new(
+            ActorType::Planet,
+            _state.id(),
+            ActorType::Explorer,
+            String::from("1"),
+            EventType::MessageExplorerToPlanet,
+            Channel::Info,
+            Payload::from([("Planet Ai started".to_string(), "Planet Ai is now running".to_string())])
+        ).emit();
         self.is_on = true;
     }
     fn stop(&mut self, _state: &PlanetState) {
+        LogEvent::new(
+            ActorType::Planet,
+            _state.id(),
+            ActorType::Explorer,
+            String::from("1"),
+            EventType::MessageExplorerToPlanet,
+            Channel::Info,
+            Payload::from([("Planet Ai stopped".to_string(), "Planet Ai is now paused".to_string())])
+        ).emit();
         self.is_on = false;
     }
 }
 
-// This is the group's "export" function. It will be called by
-// the orchestrator to spawn your planet.
+/// Ara-kees creation function.
 pub fn create_planet(
     id: u32,
     rx_orchestrator: Receiver<messages::OrchestratorToPlanet>,
@@ -251,6 +321,5 @@ pub fn create_planet(
         (rx_orchestrator, tx_orchestrator),
         rx_explorer,
     );
-    
     planet
 }
