@@ -1,3 +1,6 @@
+//! # Ara-kees AI
+//!
+//! This module implements the Ara-kees Planet AI.
 use common_game::components::planet::{DummyPlanetState, PlanetAI, PlanetState};
 use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, ComplexResource, ComplexResourceRequest, Generator, GenericResource};
 use common_game::components::rocket::Rocket;
@@ -6,11 +9,13 @@ use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer
 use common_game::utils::ID;
 use crate::logs::{exit_on_stopped_ai, log_ai_state, log_asteroid_impact, log_cell_charge, log_explorer_transit, log_generation_rules, log_internal_state, log_not_created_resource, log_resource_created, log_supported_resources};
 
-// AI struct
+/// The state representation for the Black Adidas Shoe AI.
 pub struct BlackAdidasShoe{
     is_on: bool,
 }
 impl BlackAdidasShoe {
+    /// Creates a new instance of the AI.
+    /// - `is_on`: Initial Ai status.
     pub fn new(is_on: bool)->Self{
         Self{
             is_on
@@ -18,6 +23,7 @@ impl BlackAdidasShoe {
     }
 }
 
+/// Common_game PlanetAi trait implementation
 impl PlanetAI for BlackAdidasShoe {
     fn handle_sunray(
         &mut self,
