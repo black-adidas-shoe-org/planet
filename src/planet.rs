@@ -298,12 +298,12 @@ impl PlanetAI for AI {
 
 /// Ara-kees creation function.
 pub fn create_planet(
-    id: u32,
-    rx_orchestrator: Receiver<messages::OrchestratorToPlanet>,
-    tx_orchestrator: Sender<messages::PlanetToOrchestrator>,
-    rx_explorer: Receiver<messages::ExplorerToPlanet>,
+    rx_orchestrator: Receiver<OrchestratorToPlanet>,
+    tx_orchestrator: Sender<PlanetToOrchestrator>,
+    rx_explorer: Receiver<ExplorerToPlanet>,
+    planet_id: ID
 ) -> Result<Planet, String> {
-    let ai = AI::new(false);
+    let ai = BlackAdidasShoe::new(false);
     let gen_rules = vec![
         BasicResourceType::Oxygen,
         BasicResourceType::Hydrogen,
@@ -313,7 +313,7 @@ pub fn create_planet(
 
     // Construct the planet and return it
     let planet = Planet::new(
-        id,
+        planet_id,
         PlanetType::D,
         Box::new(ai),
         gen_rules,

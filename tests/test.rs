@@ -1,14 +1,16 @@
+use ara_kees::planet::create_planet;
 use common_game::components::forge::Forge;
-use common_game::components::resource::{BasicResourceType, ComplexResourceRequest, Generator};
-use common_game::protocols::messages::{ExplorerToPlanet, OrchestratorToPlanet, PlanetToExplorer, PlanetToOrchestrator};
-use planet::planet::create_planet;
-use crossbeam_channel::{Sender, Receiver, unbounded, RecvTimeoutError};
+use common_game::components::resource::{BasicResourceType, ComplexResourceRequest};
+use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError, Sender};
 use std::thread::JoinHandle;
 use std::time::Duration;
 
+use common_game::protocols::orchestrator_planet::{OrchestratorToPlanet, PlanetToOrchestrator};
+use common_game::protocols::planet_explorer::{ExplorerToPlanet, PlanetToExplorer};
 // Handling the shared forge
 use once_cell::sync::Lazy;
 use std::sync::Mutex;
+
 static FORGE: Lazy<Mutex<Forge>> = Lazy::new(|| Mutex::new(Forge::new().unwrap()));
 fn get_forge() -> std::sync::MutexGuard<'static, Forge> {
     FORGE.lock().unwrap()
@@ -30,7 +32,7 @@ impl Environement {
         let (tx_etp, rx_etp) = unbounded::<ExplorerToPlanet>();
         let (tx_pte, rx_pte) = unbounded::<PlanetToExplorer>();
 
-        let mut planet = create_planet(1, rx_otp, tx_pto.clone(), rx_etp)
+        let mut planet = create_planet(rx_otp, tx_pto.clone(), rx_etp, 1)
             .expect("Failed to create planet");
 
         let phandle = std::thread::spawn(move || {
@@ -73,7 +75,7 @@ impl Environement {
     pub fn enable_explorer(&self) {
         self.send_otp(OrchestratorToPlanet::IncomingExplorerRequest {
             explorer_id: 1,
-            new_mpsc_sender: self.tx_pte.clone(),
+            new_sender: self.tx_pte.clone(),
         });
 
         // Wait for ack from planet
