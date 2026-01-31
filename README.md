@@ -1,6 +1,6 @@
-# Ara-Kees Planet <img src="assets/planet_sprite.png" alt="ara-kees sprite" width="30"> 👟
+# Black-Adidas-Shoe Planet <img src="assets/planet_sprite.png" alt="ara-kees sprite" width="30"> 👟
 
-This repository contains the source code for **Ara-Kees**, a planet participating in the `common_game` ecosystem (part of the **unitn-ap-2025** project).
+This repository contains the source code for our planet, which is part of the `common_game` ecosystem (part of the **unitn-ap-2025** project).
 It is a **Type D** planet,powered by the `BlackAdidasShoe` AI implementation.
 
 ## Overview
@@ -14,23 +14,22 @@ The planet handles:
 
 ## Specifications
 
-| Feature | Value | Details |
-| --- | --- | --- |
-| **Planet Name** | `Ara-Kees` | The identity in the galaxy |
-| **Crate Name** | `ara_kees` | The Rust package name |
-| **AI Struct** | `BlackAdidasShoe` | The underlying logic implementation |
-| **Planet Type** | `PlanetType::D` | Focus on raw resource generation |
+| Feature | Value               | Details |
+| --- |---------------------| --- |
+| **Crate Name** | `black_adidas_shoe` | The Rust package name |
+| **AI Struct** | `BlackAdidasShoe`   | The underlying logic implementation |
+| **Planet Type** | `PlanetType::D`     | Focus on raw resource generation |
 
 To import the planet in your project, add this under the `[dependencies]` section in your Cargo.toml:
 ```rust
-ara_kees = {git = "https://github.com/black-adidas-shoe-org/planet.git" }
+black_adidas_shoe = {git = "https://github.com/black-adidas-shoe-org/planet.git" }
 ```
 
 ## Capabilities
 
 ### 1. Resource Generation
 
-**Ara-Kees** utilizes the `Generator` component to generate these resources below.
+The planet utilizes the `Generator` component to generate these resources below.
 
 | Resource | Status | Cost | Logic |
 | --- | --- | --- | --- |
@@ -86,15 +85,15 @@ The AI implements the `ExplorerToPlanet` protocol matchers:
 
 ## Usage
 
-This library is designed to be used by the `common_game` Orchestrator. The entry point is the `create_planet` function provided by the `ara_kees` crate.
+This library is designed to be used by the `common_game` Orchestrator. The entry point is the `create_planet` function provided by the `black_adidas_shoe` crate.
 
 ### Implementation Example
 
 ```rust
 use common_game::utils::ID;
 use crossbeam_channel::unbounded;
-// Import from the ara_kees crate
-use ara_kees::create_planet; 
+// Import from the blac_adidas_shoe crate
+use black_adidas_shoe::create_planet; 
 
 fn main() {
     let (tx_orch, rx_orch) = unbounded();
@@ -102,7 +101,7 @@ fn main() {
     let (tx_expl, rx_expl) = unbounded();
     let my_id: ID = 42;
 
-    // Spawn Ara-Kees
+    // Spawn the planet
     let planet = create_planet(
         rx_orch, 
         tx_planet, 

@@ -1,6 +1,6 @@
-//! # Ara-kees AI
+//! # BlackAdidasShoe  AI
 //!
-//! This module implements the Ara-kees Planet AI.
+//! This module implements the BlackAdidasShoe  Planet AI.
 use common_game::components::planet::{DummyPlanetState, PlanetAI, PlanetState};
 use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, ComplexResource, ComplexResourceRequest, Generator, GenericResource};
 use common_game::components::rocket::Rocket;
@@ -184,12 +184,10 @@ impl PlanetAI for BlackAdidasShoe {
 
     fn on_explorer_arrival(&mut self, state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
         log_explorer_transit(String::from("Explorer arrived"), state.id());
-        //TODO do we need to do something?
     }
 
     fn on_explorer_departure(&mut self, state: &mut PlanetState, _generator: &Generator, _combinator: &Combinator, _explorer_id: ID) {
         log_explorer_transit(String::from("Explorer left"), state.id());
-        //TODO do we need to do something?
     }
 
     fn on_start(&mut self, state: &PlanetState, _generator: &Generator, _combinator: &Combinator) {
