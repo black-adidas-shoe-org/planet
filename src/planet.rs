@@ -1,17 +1,16 @@
-//! # Ara-kees Planet
+//! # BlackAdidasShoe Planet
 //!
-//! Ara-kees Planet creation module.
-//! Ara-kees is a type D Planet that can produce Hydrogen, Oxygen and Carbon.
+//! BlackAdidasShoe Planet creation module.
+//! BlackAdidasShoe is a type D Planet that can produce Hydrogen, Oxygen and Carbon.
 use crate::ai::BlackAdidasShoe;
 use common_game::components::planet::{Planet, PlanetType};
 use common_game::components::resource::BasicResourceType;
-use common_game::logging::{ActorType, Channel, EventType, LogEvent, Participant, Payload};
 use common_game::protocols::orchestrator_planet::{OrchestratorToPlanet, PlanetToOrchestrator};
 use common_game::protocols::planet_explorer::ExplorerToPlanet;
 use common_game::utils::ID;
 use crossbeam_channel::{Receiver, Sender};
 
-/// Creates and initializes a new instance of the Ara-Kees Planet.
+/// Creates and initializes a new instance of the BlackAdidasShoe Planet.
 /// -`rx_orchestrator`: Orchestrator to Planet Receiver
 /// - `tx_orchestrator`: Planet to Orchestrator Sender
 /// - `rx_explorer`: Explorer to Planet Sender
