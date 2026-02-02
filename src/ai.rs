@@ -1,6 +1,6 @@
-//! # BlackAdidasShoe  AI
+//! # `BlackAdidasShoe` AI
 //!
-//! This module implements the BlackAdidasShoe  Planet AI.
+//! This module implements the `BlackAdidasShoe` Planet AI.
 use common_game::components::planet::{DummyPlanetState, PlanetAI, PlanetState};
 use common_game::components::resource::{BasicResource, BasicResourceType, Combinator, ComplexResource, ComplexResourceRequest, Generator, GenericResource};
 use common_game::components::rocket::Rocket;
@@ -23,7 +23,7 @@ impl BlackAdidasShoe {
     }
 }
 
-/// Common_game PlanetAi trait implementation
+/// `Common_game` `PlanetAi` trait implementation
 impl PlanetAI for BlackAdidasShoe {
     fn handle_sunray(
         &mut self,
@@ -70,10 +70,7 @@ impl PlanetAI for BlackAdidasShoe {
         msg: ExplorerToPlanet
     ) -> Option<PlanetToExplorer> {
         // check on the AI state
-        if exit_on_stopped_ai(self.is_on, state.id()){ // already logging into this function
-            return None
-        }
-
+        if exit_on_stopped_ai(self.is_on, state.id()) { return None; }
         //match on the message type
         match msg {
             ExplorerToPlanet::SupportedResourceRequest { explorer_id } => {
@@ -173,7 +170,6 @@ impl PlanetAI for BlackAdidasShoe {
                     ComplexResourceRequest::Dolphin(w, l) => (complex(ComplexResource::Water(w)), complex(ComplexResource::Life(l))),
                     ComplexResourceRequest::AIPartner(r, d) => (complex(ComplexResource::Robot(r)), complex(ComplexResource::Diamond(d))),
                 };
-
                 // send them back
                 Some(PlanetToExplorer::CombineResourceResponse {
                     complex_response: Err((String::from("Not supported"), res1, res2)),
