@@ -8,11 +8,10 @@ use common_game::utils::ID;
 
 const ORCH_ID:ID = 0u32;
 pub fn exit_on_stopped_ai(is_on: bool, planet_id: ID) ->bool{
-    if !is_on{
+    if is_on { false } else {
         log_ai_state(String::from("AI field `is_on` is false"), planet_id);
         true
     }
-    else { false }
 }
 // Begin of Log functions
 pub fn log_ai_state(msg: String, planet_id: ID) {
