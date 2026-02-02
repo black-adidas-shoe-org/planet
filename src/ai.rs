@@ -32,7 +32,7 @@ impl PlanetAI for BlackAdidasShoe {
         _combinator: &Combinator,
         sunray: Sunray
     ){
-        if let Some(_) = state.charge_cell(sunray){
+        if state.charge_cell(sunray).is_some(){
             // cell charged
             log_cell_charge(String::from("Cell recharged correctly"), state.id());
         }else{
