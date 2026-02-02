@@ -81,8 +81,8 @@ impl Environement {
         // Wait for ack from planet
         match self.recv_pto() {
             Ok(PlanetToOrchestrator::IncomingExplorerResponse { .. }) => {}
-            Ok(_msg) => panic!("Unexpected message while enabling explorer"),
-            Err(_e) => panic!("Explorer not enabled, recv error"),
+            Ok(_other) => panic!("Unexpected message while enabling explorer"),
+            Err(_) => panic!("Explorer not enabled, recv error"),
         }
     }
 }
@@ -143,7 +143,7 @@ fn test_orchestrator_internal_state_request() {
     let resp = env.recv_pto().expect("Expected a response from planet");
 
     match resp {
-        PlanetToOrchestrator::InternalStateResponse { planet_id, .. } => {
+        PlanetToOrchestrator::InternalStateResponse { planet_id, planet_state: _planet_state } => {
             assert_eq!(planet_id, 1, "Unexpected planet id (should be 1)");
         }
         _ => panic!("Unexpected response (expected InternalStateResponse)"),

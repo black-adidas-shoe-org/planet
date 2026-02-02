@@ -30,7 +30,7 @@ pub fn create_planet(
     let comb_rules = vec![];
 
     // Construct the planet and return it
-    let planet = Planet::new(
+    Planet::new(
         planet_id,
         PlanetType::D,
         Box::new(ai),
@@ -38,6 +38,5 @@ pub fn create_planet(
         comb_rules,
         (rx_orchestrator, tx_orchestrator),
         rx_explorer,
-    );
-    planet
+    )
 }
