@@ -1,4 +1,4 @@
-use ara_kees::planet::create_planet;
+use black_adidas_shoe::planet::create_planet;
 use common_game::components::forge::Forge;
 use common_game::components::resource::{BasicResourceType, ComplexResourceRequest};
 use crossbeam_channel::{unbounded, Receiver, RecvTimeoutError, Sender};
@@ -81,7 +81,7 @@ impl Environement {
         // Wait for ack from planet
         match self.recv_pto() {
             Ok(PlanetToOrchestrator::IncomingExplorerResponse { .. }) => {}
-            Ok(_) => panic!("Unexpected message while enabling explorer"),
+            Ok(_other) => panic!("Unexpected message while enabling explorer"),
             Err(_) => panic!("Explorer not enabled, recv error"),
         }
     }
@@ -111,7 +111,7 @@ fn test_ai_disabled_behavior() {
         Ok(PlanetToOrchestrator::Stopped { planet_id }) => {
             println!("Received expected Stopped message from planet {}", planet_id);
         }
-        Ok(_) => panic!("Unexpected response (expected Stopped)"),
+        Ok(_other) => panic!("Unexpected response (expected Stopped)"),
         Err(_) => panic!("No response received (expected Stopped)"),
     }
 }

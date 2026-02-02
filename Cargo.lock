@@ -62,8 +62,8 @@ dependencies = [
 ]
 
 [[package]]
-name = "ara_kees"
-version = "0.1.0"
+name = "black_adidas_shoe"
+version = "1.0.1"
 dependencies = [
  "common-game",
  "crossbeam-channel",
