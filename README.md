@@ -124,7 +124,7 @@ The planet uses `LogEvent` to communicate strictly typed events to the Orchestra
 
 | Name | Profile | Role | Mail |
 | :--- | :--- | :--- | :--- |
-| Giovanni | [Ricxel](https://github.com/giovanniSbal) | Leader | [giovanni.sbalchiero@studenti.unitn.it](mailto:giovanni.sbalchiero@studenti.unitn.it) |
+| Giovanni | [giovanniSba](https://github.com/giovanniSba) | Leader | [giovanni.sbalchiero@studenti.unitn.it](mailto:giovanni.sbalchiero@studenti.unitn.it) |
 | Luca | [ldrunitn](https://github.com/ldrunitn) | Member | [luca.dariz-1@studenti.unitn.it](mailto:luca.dariz-1@studenti.unitn.it) |
 | Alessandro | [Omatita](https://github.com/Omatita) | Member | [alessandro.omati@studenti.unitn.it](mailto:alessandro.omati@studenti.unitn.it) |
 | Leonardo | [l3osilv](https://github.com/l3osilv) | Member | [leonardo.silvestri-1@studenti.unitn.it](mailto:leonardo.silvestri-1@studenti.unitn.it) |
